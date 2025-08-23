@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}AgriX - Yield Estimation{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<a href="{{ url_for('main.dashboard') }}" class="back-button">
+    <i class="fas fa-arrow-left"></i>
+    Back to Dashboard
+</a>
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Crop Yield Estimation</h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Estimate your crop yield based on various factors</p>
+                
+                <form method="POST" action="{{ url_for('main.yield_estimation') }}">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="crop_type" class="form-label">Crop Type</label>
+                                <select class="form-select" id="crop_type" name="crop_type" required>
+                                    <option value="" selected disabled>Select a crop</option>
+                                    <option value="rice">Rice</option>
+                                    <option value="wheat">Wheat</option>
+                                    <option value="maize">Maize/Corn</option>
+                                    <option value="cotton">Cotton</option>
+                                    <option value="sugarcane">Sugarcane</option>
+                                    <option value="potato">Potato</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="area" class="form-label">Area (Hectares)</label>
+                                <input type="number" class="form-control" id="area" name="area" step="0.1" min="0.1" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="state" class="form-label">State</label>
+                                <select class="form-select" id="state" name="state" required>
+                                    <option value="" selected disabled>Select your state</option>
+                                    <option value="Andhra Pradesh">Andhra Pradesh</option>
+                                    <option value="Bihar">Bihar</option>
+                                    <option value="Gujarat">Gujarat</option>
+                                    <option value="Haryana">Haryana</option>
+                                    <option value="Karnataka">Karnataka</option>
+                                    <option value="Madhya Pradesh">Madhya Pradesh</option>
+                                    <option value="Maharashtra">Maharashtra</option>
+                                    <option value="Punjab">Punjab</option>
+                                    <option value="Tamil Nadu">Tamil Nadu</option>
+                                    <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                    <option value="West Bengal">West Bengal</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="irrigation" class="form-label">Irrigation Method</label>
+                                <select class="form-select" id="irrigation" name="irrigation" required>
+                                    <option value="" selected disabled>Select method</option>
+                                    <option value="drip">Drip Irrigation</option>
+                                    <option value="sprinkler">Sprinkler Irrigation</option>
+                                    <option value="flood">Flood Irrigation</option>
+                                    <option value="rainfed">Rainfed (No Irrigation)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="soil_type" class="form-label">Soil Type</label>
+                                <select class="form-select" id="soil_type" name="soil_type">
+                                    <option value="" selected disabled>Select soil type</option>
+                                    <option value="clay">Clay</option>
+                                    <option value="loam">Loam</option>
+                                    <option value="sandy">Sandy</option>
+                                    <option value="silt">Silt</option>
+                                    <option value="black">Black</option>
+                                    <option value="red">Red</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="seed_quality" class="form-label">Seed Quality</label>
+                                <select class="form-select" id="seed_quality" name="seed_quality" required>
+                                    <option value="" selected disabled>Select quality</option>
+                                    <option value="high">High Quality (Certified)</option>
+                                    <option value="medium">Medium Quality</option>
+                                    <option value="low">Low Quality</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="fertilizer_usage" class="form-label">Fertilizer Usage</label>
+                                <select class="form-select" id="fertilizer_usage" name="fertilizer_usage" required>
+                                    <option value="" selected disabled>Select usage level</option>
+                                    <option value="high">High Usage</option>
+                                    <option value="moderate">Moderate Usage</option>
+                                    <option value="low">Low Usage</option>
+                                    <option value="organic">Organic Fertilizers Only</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="pesticide_usage" class="form-label">Pesticide Usage</label>
+                                <select class="form-select" id="pesticide_usage" name="pesticide_usage" required>
+                                    <option value="" selected disabled>Select usage level</option>
+                                    <option value="high">High Usage</option>
+                                    <option value="moderate">Moderate Usage</option>
+                                    <option value="low">Low Usage</option>
+                                    <option value="organic">Organic Pesticides Only</option>
+                                    <option value="none">No Pesticides</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="technology_level" class="form-label">Technology Level</label>
+                                <select class="form-select" id="technology_level" name="technology_level" required>
+                                    <option value="" selected disabled>Select level</option>
+                                    <option value="high">High-Tech (Modern Equipment)</option>
+                                    <option value="moderate">Moderate Technology</option>
+                                    <option value="low">Traditional Farming</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">Calculate Yield</button>
+                    </div>
+                </form>
+                
+                {% if yield_result %}
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card bg-light">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="card-title mb-0">Estimated Yield Results</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h4>Yield Estimation</h4>
+                                        <p><strong>Estimated Yield:</strong> {{ yield_result.yield_per_hectare }} quintals/hectare</p>
+                                        <p><strong>Total Yield:</strong> {{ yield_result.total_yield }} quintals</p>
+                                        <p><strong>Confidence Level:</strong> {{ yield_result.confidence }}%</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h4>Market Information</h4>
+                                        <p><strong>Current Market Price:</strong> ₹{{ yield_result.market_price }}/quintal</p>
+                                        <p><strong>Estimated Value:</strong> ₹{{ yield_result.estimated_value }}</p>
+                                    </div>
+                                </div>
+                                
+                                <hr>
+                                
+                                <h4>Yield Optimization Suggestions</h4>
+                                <ul>
+                                    {% for suggestion in yield_result.suggestions %}
+                                        <li>{{ suggestion }}</li>
+                                    {% endfor %}
+                                </ul>
+                                
+                                {% if yield_result.chart_data %}
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <h4>Yield Comparison</h4>
+                                        <canvas id="yieldComparisonChart" height="250"></canvas>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if yield_history %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Your Yield History</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Crop</th>
+                                <th>Area (ha)</th>
+                                <th>Yield/ha</th>
+                                <th>Total Yield</th>
+                                <th>Est. Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in yield_history %}
+                            <tr>
+                                <td>{{ record.created_at.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ record.crop_type }}</td>
+                                <td>{{ record.area }}</td>
+                                <td>{{ record.yield_per_hectare }} q/ha</td>
+                                <td>{{ record.total_yield }} q</td>
+                                <td>₹{{ record.estimated_value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if yield_result and yield_result.chart_data %}
+<script>
+    const yieldCtx = document.getElementById('yieldComparisonChart').getContext('2d');
+    const chartData = {{ yield_result.chart_data|safe }};
+    
+    const yieldComparisonChart = new Chart(yieldCtx, {
+        type: 'bar',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: 'Yield (quintals/hectare)',
+                data: chartData.values,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.6)',
+                    'rgba(54, 162, 235, 0.6)',
+                    'rgba(255, 206, 86, 0.6)',
+                    'rgba(75, 192, 192, 0.6)',
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)',
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Yield (quintals/hectare)'
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Yield Comparison'
+                },
+                legend: {
+                    display: false
+                }
+            },
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

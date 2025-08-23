@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}AgriX - Weather Forecast{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<a href="{{ url_for('main.dashboard') }}" class="back-button">
+    <i class="fas fa-arrow-left"></i>
+    Back to Dashboard
+</a>
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Weather Forecast</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('main.weather') }}" class="mb-4">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="location" placeholder="Enter city or location" required>
+                        <button type="submit" class="btn btn-primary">Get Weather</button>
+                    </div>
+                </form>
+
+                {% if error %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+
+                {% if weather_data %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="card-title mb-0">
+                                        Current Weather in {{ weather_data.name }}, {{ weather_data.sys.country }}
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <img src="http://openweathermap.org/img/wn/{{ weather_data.weather[0].icon }}@2x.png" 
+                                             alt="{{ weather_data.weather[0].description }}" 
+                                             style="width:80px; height:80px; margin-right:15px;">
+                                        <div>
+                                            <h2 class="mb-0">{{ weather_data.main.temp }}°C</h2>
+                                            <p class="text-capitalize">{{ weather_data.weather[0].description }}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <p><strong>Feels like:</strong> {{ weather_data.main.feels_like }}°C</p>
+                                            <p><strong>Min:</strong> {{ weather_data.main.temp_min }}°C</p>
+                                            <p><strong>Max:</strong> {{ weather_data.main.temp_max }}°C</p>
+                                        </div>
+                                        <div class="col-6">
+                                            <p><strong>Humidity:</strong> {{ weather_data.main.humidity }}%</p>
+                                            <p><strong>Pressure:</strong> {{ weather_data.main.pressure }} hPa</p>
+                                            <p><strong>Wind:</strong> {{ weather_data.wind.speed }} m/s</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="card-title mb-0">Agricultural Weather Impact</h5>
+                                </div>
+                                <div class="card-body">
+                                    {% if weather_data.main.temp < 10 %}
+                                        <p class="alert alert-info">Low temperature conditions. Consider protective measures for frost-sensitive crops.</p>
+                                    {% elif weather_data.main.temp > 35 %}
+                                        <p class="alert alert-warning">High temperature alert. Ensure adequate irrigation and consider heat protection for crops.</p>
+                                    {% else %}
+                                        <p class="alert alert-success">Current temperature conditions are favorable for most crops.</p>
+                                    {% endif %}
+
+                                    {% if weather_data.main.humidity < 30 %}
+                                        <p class="alert alert-warning">Low humidity may lead to increased evaporation. Consider additional irrigation.</p>
+                                    {% elif weather_data.main.humidity > 80 %}
+                                        <p class="alert alert-info">High humidity may increase disease risk. Monitor for fungal diseases.</p>
+                                    {% else %}
+                                        <p class="alert alert-success">Current humidity levels are generally favorable.</p>
+                                    {% endif %}
+
+                                    {% if weather_data.wind.speed > 10 %}
+                                        <p class="alert alert-warning">High wind speeds detected. Tall crops may be at risk of lodging.</p>
+                                    {% endif %}
+
+                                    <p><strong>Sunrise:</strong> {{ weather_data.sys.sunrise | timestamp_to_time }}</p>
+                                    <p><strong>Sunset:</strong> {{ weather_data.sys.sunset | timestamp_to_time }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 5-day forecast visualization -->
+                    <div class="card mt-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">5-Day Weather Forecast</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row" style="height:300px;">
+                                <div class="col-md-6">
+                                    <canvas id="temperatureChart"></canvas>
+                                </div>
+                                <div class="col-md-6">
+                                    <canvas id="humidityChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Weather Tips Section -->
+        {% include "weather_tips.html" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if forecast_data %}
+<script>
+    const forecastData = {{ forecast_data | tojson }};
+    
+    const tempCtx = document.getElementById('temperatureChart').getContext('2d');
+    new Chart(tempCtx, {
+        type: 'line',
+        data: {
+            labels: forecastData.labels,
+            datasets: [{
+                label: 'Temperature (°C)',
+                data: forecastData.temperatures,
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                borderColor: 'rgba(255, 99, 132, 1)',
+                borderWidth: 2,
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { title: { display: true, text: 'Temperature (°C)' } },
+                x: { title: { display: true, text: 'Day' } }
+            },
+            plugins: {
+                title: { display: true, text: '5-Day Temperature Forecast' }
+            }
+        }
+    });
+    
+    const humidityCtx = document.getElementById('humidityChart').getContext('2d');
+    new Chart(humidityCtx, {
+        type: 'bar',
+        data: {
+            labels: forecastData.labels,
+            datasets: [{
+                label: 'Humidity (%)',
+                data: forecastData.humidity,
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { suggestedMin: 30, suggestedMax: 100, title: { display: true, text: 'Humidity (%)' } },
+                x: { title: { display: true, text: 'Day' } }
+            },
+            plugins: {
+                title: { display: true, text: '5-Day Humidity Forecast' }
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

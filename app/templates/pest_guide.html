@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}AgriX - Pest Management Guide{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Pest Management Guide</h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Identify common pests and learn effective management practices</p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 offset-md-3">
+                        <form method="GET" action="{{ url_for('main.pest_guide') }}" class="d-flex">
+                            <select class="form-select me-2" name="crop_filter">
+                                <option value="">All Crops</option>
+                                <option value="rice" {% if request.args.get('crop_filter') == 'rice' %}selected{% endif %}>Rice</option>
+                                <option value="wheat" {% if request.args.get('crop_filter') == 'wheat' %}selected{% endif %}>Wheat</option>
+                                <option value="maize" {% if request.args.get('crop_filter') == 'maize' %}selected{% endif %}>Maize/Corn</option>
+                                <option value="cotton" {% if request.args.get('crop_filter') == 'cotton' %}selected{% endif %}>Cotton</option>
+                                <option value="sugarcane" {% if request.args.get('crop_filter') == 'sugarcane' %}selected{% endif %}>Sugarcane</option>
+                                <option value="vegetables" {% if request.args.get('crop_filter') == 'vegetables' %}selected{% endif %}>Vegetables</option>
+                                <option value="fruits" {% if request.args.get('crop_filter') == 'fruits' %}selected{% endif %}>Fruits</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary">Filter</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Pest Cards -->
+                <div class="row row-cols-1 row-cols-md-3 g-4">
+                    <!-- Rice Pests -->
+                    {% if not request.args.get('crop_filter') or request.args.get('crop_filter') == 'rice' %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-danger text-white">
+                                Rice - Brown Plant Hopper
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Identification:</strong> Small brownish insects that suck sap from rice plants.</p>
+                                <p><strong>Symptoms:</strong> Yellowing of leaves, reduced vigor, "hopper burn" (patches of dying plants).</p>
+                                <p><strong>Management:</strong></p>
+                                <ul>
+                                    <li>Plant resistant varieties</li>
+                                    <li>Avoid excessive nitrogen application</li>
+                                    <li>Drain fields periodically</li>
+                                    <li>Use recommended insecticides only when necessary</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-danger text-white">
+                                Rice - Stem Borer
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Identification:</strong> Moths lay eggs that hatch into larvae that bore into rice stems.</p>
+                                <p><strong>Symptoms:</strong> Dead heart (dead central shoots), white heads (empty panicles), wilting.</p>
+                                <p><strong>Management:</strong></p>
+                                <ul>
+                                    <li>Remove stubbles after harvest</li>
+                                    <li>Early planting of crops</li>
+                                    <li>Use pheromone traps</li>
+                                    <li>Apply appropriate insecticides at economic threshold levels</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Wheat Pests -->
+                    {% if not request.args.get('crop_filter') or request.args.get('crop_filter') == 'wheat' %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-danger text-white">
+                                Wheat - Aphids
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Identification:</strong> Small soft-bodied insects that cluster on wheat plants.</p>
+                                <p><strong>Symptoms:</strong> Yellowing of leaves, reduced growth, honeydew secretion.</p>
+                                <p><strong>Management:</strong></p>
+                                <ul>
+                                    <li>Monitor fields regularly</li>
+                                    <li>Encourage natural enemies like ladybugs</li>
+                                    <li>Apply insecticidal soap for small infestations</li>
+                                    <li>Use systemic insecticides for severe infestations</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-danger text-white">
+                                Wheat - Rust Disease
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Identification:</strong> Reddish-brown or yellow powdery pustules on leaves and stems.</p>
+                                <p><strong>Symptoms:</strong> Reduced photosynthetic area, weakened plants, reduced yield.</p>
+                                <p><strong>Management:</strong></p>
+                                <ul>
+                                    <li>Plant resistant varieties</li>
+                                    <li>Early planting to avoid peak rust season</li>
+                                    <li>Crop rotation</li>
+                                    <li>Apply fungicides at early infection stages</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Maize Pests -->
+                    {% if not request.args.get('crop_filter') or request.args.get('crop_filter') == 'maize' %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-danger text-white">
+                                Maize - Fall Armyworm
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Identification:</strong> Caterpillars with distinctive "Y" mark on head and four dots forming a square on the end segment.</p>
+                                <p><strong>Symptoms:</strong> Leaf damage with "windows", damaged whorls, ear damage.</p>
+                                <p><strong>Management:</strong></p>
+                                <ul>
+                                    <li>Early planting to avoid peak infestation periods</li>
+                                    <li>Handpicking larvae in small fields</li>
+                                    <li>Use pheromone traps for monitoring</li>
+                                    <li>Apply recommended biopesticides or chemical controls</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-danger text-white">
+                                Maize - Stem Borer
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Identification:</strong> Larvae bore into stems, causing tunneling.</p>
+                                <p><strong>Symptoms:</strong> Dead heart, broken stems, holes with sawdust-like frass.</p>
+                                <p><strong>Management:</strong></p>
+                                <ul>
+                                    <li>Practice crop rotation</li>
+                                    <li>Destroy crop residues after harvest</li>
+                                    <li>Early planting</li>
+                                    <li>Apply granular insecticides to whorls at economic threshold level</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Cotton Pests -->
+                    {% if not request.args.get('crop_filter') or request.args.get('crop_filter') == 'cotton' %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-danger text-white">
+                                Cotton - Bollworm
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Identification:</strong> Caterpillars that feed on cotton bolls, flowers, and squares.</p>
+                                <p><strong>Symptoms:</strong> Holes in bolls, damaged squares, reduced yield.</p>
+                                <p><strong>Management:</strong></p>
+                                <ul>
+                                    <li>Plant Bt cotton varieties where approved</li>
+                                    <li>Implement IPM practices</li>
+                                    <li>Monitor fields regularly with pheromone traps</li>
+                                    <li>Use selective insecticides to preserve natural enemies</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-danger text-white">
+                                Cotton - Whitefly
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Identification:</strong> Tiny white insects that cluster on the undersides of leaves.</p>
+                                <p><strong>Symptoms:</strong> Yellowing of leaves, sticky honeydew, growth of sooty mold, cotton leaf curl virus.</p>
+                                <p><strong>Management:</strong></p>
+                                <ul>
+                                    <li>Plant resistant varieties</li>
+                                    <li>Maintain field hygiene</li>
+                                    <li>Use yellow sticky traps</li>
+                                    <li>Apply neem-based products or recommended insecticides</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">Integrated Pest Management (IPM)</h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">IPM combines different pest control methods to minimize environmental impact and economic damage</p>
+                
+                <div class="accordion" id="ipmAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading1">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse1">
+                                Prevention
+                            </button>
+                        </h2>
+                        <div id="collapse1" class="accordion-collapse collapse show" data-bs-parent="#ipmAccordion">
+                            <div class="accordion-body">
+                                <ul>
+                                    <li>Use resistant crop varieties</li>
+                                    <li>Practice crop rotation to break pest cycles</li>
+                                    <li>Maintain field hygiene and sanitation</li>
+                                    <li>Adjust planting dates to avoid peak pest populations</li>
+                                    <li>Use healthy seeds and seedlings</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading2">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse2">
+                                Monitoring
+                            </button>
+                        </h2>
+                        <div id="collapse2" class="accordion-collapse collapse" data-bs-parent="#ipmAccordion">
+                            <div class="accordion-body">
+                                <ul>
+                                    <li>Regularly inspect crops for pests and diseases</li>
+                                    <li>Use traps (pheromone, sticky, light) for early detection</li>
+                                    <li>Identify economic threshold levels (ETL) for intervention</li>
+                                    <li>Keep detailed records of observations and actions</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading3">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse3">
+                                Control Methods
+                            </button>
+                        </h2>
+                        <div id="collapse3" class="accordion-collapse collapse" data-bs-parent="#ipmAccordion">
+                            <div class="accordion-body">
+                                <h5>Biological Control</h5>
+                                <ul>
+                                    <li>Encourage natural enemies (predators, parasitoids)</li>
+                                    <li>Use microbial pesticides (Bt, fungi, virus)</li>
+                                    <li>Release beneficial organisms when appropriate</li>
+                                </ul>
+                                
+                                <h5>Cultural Control</h5>
+                                <ul>
+                                    <li>Adjust irrigation and fertilization practices</li>
+                                    <li>Use trap crops to attract pests away from main crop</li>
+                                    <li>Practice intercropping and polyculture</li>
+                                </ul>
+                                
+                                <h5>Mechanical & Physical Control</h5>
+                                <ul>
+                                    <li>Handpick pests in small areas</li>
+                                    <li>Use barriers, nets, and traps</li>
+                                    <li>Prune infected parts of plants</li>
+                                </ul>
+                                
+                                <h5>Chemical Control (Last Resort)</h5>
+                                <ul>
+                                    <li>Use selective pesticides that target specific pests</li>
+                                    <li>Apply at optimal timing for pest life cycle</li>
+                                    <li>Rotate pesticide classes to prevent resistance</li>
+                                    <li>Follow all safety precautions and regulations</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Common Pests and Management</h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Identify common pests and learn effective management practices</p>
+
+                <div class="row row-cols-1 row-cols-md-3 g-4">
+                    {% for pest in pests %}
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-header bg-danger text-white">
+                                    {{ pest.name }}
+                                </div>
+                                <div class="card-body">
+                                    <p><strong>Crops:</strong> {{ pest.crops }}</p>
+                                    <p><strong>Symptoms:</strong> {{ pest.symptoms }}</p>
+                                    <p><strong>Management:</strong> {{ pest.management }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,1313 @@
+from flask import Blueprint, jsonify, render_template, redirect, url_for, flash, request, session
+from flask_login import login_user, logout_user, login_required, current_user
+from werkzeug.security import check_password_hash
+from werkzeug.utils import secure_filename
+from __init__ import db
+from models import User, CropPrediction
+import requests
+import json
+import os
+from datetime import datetime
+import numpy as np
+import time
+
+try:
+    from model import (
+        comprehensive_pesticide_analysis,
+        analyze_pesticide_image,
+        test_api_connection,
+        simple_pesticide_analysis,
+        analyze_crop_problem_with_ai
+    )
+    MODEL_AVAILABLE = True
+    print("OpenAI pesticide analysis model loaded successfully!")
+except ImportError as e:
+    MODEL_AVAILABLE = False
+    print(f"Warning: OpenAI model.py not found or has import issues: {str(e)}. Using fallback analysis.")
+
+# Import ML model for crop prediction
+try:
+    from ml_model import get_ml_prediction, train_models_if_needed
+    ML_MODEL_AVAILABLE = True
+    print("Machine Learning crop prediction model loaded successfully!")
+    # Train models if needed
+    train_models_if_needed()
+except ImportError as e:
+    ML_MODEL_AVAILABLE = False
+    print(f"Warning: ML model not available: {str(e)}. Using fallback prediction.")
+
+main_bp = Blueprint('main', __name__)
+
+@main_bp.app_template_filter('timestamp_to_time')
+def timestamp_to_time(timestamp):
+    """Convert UNIX timestamp to human-readable HH:MM:SS format."""
+    try:
+        return datetime.fromtimestamp(timestamp).strftime('%H:%M:%S')
+    except Exception:
+        return "Invalid time"
+
+# API Keys and Configuration
+WEATHER_API_KEY = 'f3922be0cb6dec52e9342d8829919685'
+WEATHER_API_URL = 'https://api.openweathermap.org/data/2.5/weather'
+
+
+# Upload configuration
+UPLOAD_FOLDER = 'app/static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+# Make sure upload folder exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    """Check if file extension is allowed."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def analyze_pesticide_with_ai(image_path, filename):
+    """
+    Analyze pesticide image using OpenAI model or fallback method.
+    """
+    try:
+        if MODEL_AVAILABLE:
+            print("Using OpenAI-based pesticide analysis...")
+            
+            # Check API connection first
+            api_available, api_message = test_api_connection()
+            
+            if api_available:
+                # Use the comprehensive OpenAI analysis
+                result = comprehensive_pesticide_analysis(image_path, filename)
+                
+                # Ensure the result has the expected structure
+                if not isinstance(result, dict):
+                    raise ValueError("Invalid analysis result structure")
+                
+                # Add some additional metadata
+                result['analysis_method'] = 'OpenAI GPT-4 Vision'
+                result['api_status'] = 'success'
+                
+                print(f"OpenAI analysis completed successfully in {result.get('analysis_time', 'unknown')} seconds")
+                return result
+            else:
+                print(f"OpenAI API not available: {api_message}. Using simple analysis.")
+                return simple_pesticide_analysis(image_path, filename)
+        else:
+            print("OpenAI model not available. Using fallback analysis.")
+            return get_fallback_analysis(filename)
+            
+    except Exception as e:
+        print(f"Error in OpenAI analysis: {str(e)}")
+        # Fall back to simple analysis if OpenAI fails
+        try:
+            if MODEL_AVAILABLE:
+                return simple_pesticide_analysis(image_path, filename)
+            else:
+                return get_fallback_analysis(filename)
+        except Exception as fallback_error:
+            print(f"Fallback analysis also failed: {str(fallback_error)}")
+            return get_emergency_fallback(filename)
+
+def get_emergency_fallback(filename):
+    """Emergency fallback when all other methods fail."""
+    return {
+        'pesticide': 'Unknown Pesticide Product',
+        'confidence': 50,
+        'safety': 'Caution',
+        'recommendation': 'Unable to analyze the image automatically. Please consult the product label for specific instructions. Always follow safety guidelines: wear protective equipment, avoid windy conditions, and keep away from children and pets.',
+        'active_ingredients': ['Consult product label'],
+        'filename': filename,
+        'analysis_method': 'Emergency Fallback',
+        'analysis_time': 0.1
+    }
+
+def enhanced_crop_prediction(crop_type, season, area, soil_type, nitrogen, phosphorus, potassium, rainfall, temperature):
+    """Enhanced crop prediction with multiple environmental factors"""
+    
+    crop_conditions = {
+        'rice': {
+            'temp_range': (20, 35),
+            'rainfall_range': (1000, 2000),
+            'soil_preference': ['clay', 'loam'],
+            'nitrogen': (80, 120),
+            'phosphorus': (40, 60),
+            'potassium': (40, 60),
+            'base_yield': 4.0,
+            'season_preference': ['kharif']
+        },
+        'wheat': {
+            'temp_range': (15, 25),
+            'rainfall_range': (400, 1100),
+            'soil_preference': ['loam', 'clay', 'silt'],
+            'nitrogen': (100, 120),
+            'phosphorus': (50, 60),
+            'potassium': (40, 50),
+            'base_yield': 3.5,
+            'season_preference': ['rabi']
+        },
+        'maize': {
+            'temp_range': (21, 30),
+            'rainfall_range': (500, 1000),
+            'soil_preference': ['loam', 'sandy'],
+            'nitrogen': (120, 150),
+            'phosphorus': (60, 80),
+            'potassium': (60, 80),
+            'base_yield': 5.2,
+            'season_preference': ['kharif', 'rabi']
+        },
+        'cotton': {
+            'temp_range': (21, 30),
+            'rainfall_range': (500, 1000),
+            'soil_preference': ['black', 'loam'],
+            'nitrogen': (100, 150),
+            'phosphorus': (50, 80),
+            'potassium': (50, 80),
+            'base_yield': 1.8,
+            'season_preference': ['kharif']
+        },
+        'sugarcane': {
+            'temp_range': (26, 32),
+            'rainfall_range': (1000, 1500),
+            'soil_preference': ['loam', 'clay'],
+            'nitrogen': (200, 300),
+            'phosphorus': (80, 120),
+            'potassium': (100, 150),
+            'base_yield': 70.0,
+            'season_preference': ['perennial']
+        }
+    }
+    
+    # Get crop-specific conditions or use defaults
+    conditions = crop_conditions.get(crop_type.lower(), {
+        'temp_range': (20, 30),
+        'rainfall_range': (600, 1200),
+        'soil_preference': ['loam'],
+        'nitrogen': (80, 120),
+        'phosphorus': (40, 60),
+        'potassium': (40, 60),
+        'base_yield': 3.0,
+        'season_preference': ['kharif', 'rabi']
+    })
+    
+    # Calculate suitability scores
+    temp_score = calculate_range_score(temperature, conditions['temp_range'])
+    rainfall_score = calculate_range_score(rainfall, conditions['rainfall_range'])
+    soil_score = 100 if soil_type.lower() in conditions['soil_preference'] else 70
+    season_score = 100 if season.lower() in conditions['season_preference'] else 60
+    
+    # Nutrient adequacy scores
+    n_score = calculate_range_score(nitrogen, conditions['nitrogen'])
+    p_score = calculate_range_score(phosphorus, conditions['phosphorus'])
+    k_score = calculate_range_score(potassium, conditions['potassium'])
+    
+    # Overall suitability score
+    suitability_score = (temp_score + rainfall_score + soil_score + season_score + n_score + p_score + k_score) / 7
+    
+    # Calculate estimated yield
+    base_yield = conditions['base_yield']
+    yield_modifier = suitability_score / 100
+    estimated_yield = base_yield * yield_modifier * area
+    
+    recommendations = []
+    if temp_score < 80:
+        if temperature < conditions['temp_range'][0]:
+            recommendations.append("Consider protected cultivation or greenhouse farming due to low temperatures.")
+        else:
+            recommendations.append("Temperature is higher than optimal. Consider shade nets or cooling methods.")
+    
+    if rainfall_score < 80:
+        if rainfall < conditions['rainfall_range'][0]:
+            recommendations.append("Supplement with irrigation due to low rainfall.")
+        else:
+            recommendations.append("Ensure proper drainage due to excess rainfall.")
+    
+    if soil_score < 90:
+        recommendations.append(f"Soil type is not optimal for {crop_type}. Consider soil amendments or choose a more suitable crop.")
+    
+    if season_score < 90:
+        recommendations.append(f"Season is not optimal for {crop_type}. Consider planting in the recommended season.")
+    
+    # Nutrient recommendations
+    if n_score < 80:
+        recommendations.append(f"Increase nitrogen application. Recommended: {conditions['nitrogen'][0]}-{conditions['nitrogen'][1]} kg/ha")
+    if p_score < 80:
+        recommendations.append(f"Increase phosphorus application. Recommended: {conditions['phosphorus'][0]}-{conditions['phosphorus'][1]} kg/ha")
+    if k_score < 80:
+        recommendations.append(f"Increase potassium application. Recommended: {conditions['potassium'][0]}-{conditions['potassium'][1]} kg/ha")
+    
+    # Generate result message
+    suitability_text = "Excellent" if suitability_score >= 90 else "Good" if suitability_score >= 75 else "Fair" if suitability_score >= 60 else "Poor"
+    
+    result = f"Based on your field conditions, {crop_type} cultivation shows {suitability_text.lower()} suitability ({suitability_score:.1f}%) for {season} season in {area} hectares."
+    yield_estimation = f"Estimated yield: {estimated_yield:.2f} tons (Average: {estimated_yield/area:.2f} tons/hectare)"
+    
+    return {
+        'result': result,
+        'yield_estimation': yield_estimation,
+        'suitability_score': round(suitability_score, 1),
+        'recommendations': recommendations
+    }
+
+def map_yield_form_to_ml_inputs(crop_type, area, soil_type, state, seed_quality,
+                           fertilizer_usage, pesticide_usage, technology_level, irrigation):
+    """
+    Map yield estimation form inputs to ML model inputs
+    """
+    # Default values for ML model inputs not directly provided in form
+    season = 'kharif'  # Default to monsoon season
+    
+    # Map fertilizer usage to nutrient levels (N, P, K)
+    fertilizer_mapping = {
+        'high': {'nitrogen': 120, 'phosphorus': 60, 'potassium': 60},
+        'moderate': {'nitrogen': 80, 'phosphorus': 40, 'potassium': 40},
+        'low': {'nitrogen': 40, 'phosphorus': 20, 'potassium': 20},
+        'organic': {'nitrogen': 60, 'phosphorus': 30, 'potassium': 30}
+    }
+    
+    nutrients = fertilizer_mapping.get(fertilizer_usage, fertilizer_mapping['moderate'])
+    nitrogen = nutrients['nitrogen']
+    phosphorus = nutrients['phosphorus']
+    potassium = nutrients['potassium']
+    
+    # Estimate rainfall based on state and irrigation method
+    # This is a simplified estimation
+    state_rainfall = {
+        'Andhra Pradesh': 1000, 'Bihar': 1200, 'Gujarat': 800, 'Haryana': 600,
+        'Karnataka': 900, 'Madhya Pradesh': 1100, 'Maharashtra': 950, 'Punjab': 500,
+        'Tamil Nadu': 1100, 'Uttar Pradesh': 1000, 'West Bengal': 1300
+    }
+    
+    base_rainfall = state_rainfall.get(state, 900)  # Default to 900mm
+    
+    # Adjust rainfall based on irrigation method
+    irrigation_factor = {
+        'drip': 0.7, 'sprinkler': 0.8, 'flood': 1.0, 'rainfed': 1.2
+    }
+    
+    rainfall = base_rainfall * irrigation_factor.get(irrigation, 1.0)
+    
+    # Estimate temperature based on state (simplified)
+    state_temperature = {
+        'Andhra Pradesh': 28, 'Bihar': 26, 'Gujarat': 29, 'Haryana': 25,
+        'Karnataka': 24, 'Madhya Pradesh': 26, 'Maharashtra': 27, 'Punjab': 24,
+        'Tamil Nadu': 28, 'Uttar Pradesh': 25, 'West Bengal': 27
+    }
+    
+    temperature = state_temperature.get(state, 26)  # Default to 26°C
+    
+    return {
+        'crop_type': crop_type,
+        'season': season,
+        'area': area,
+        'soil_type': soil_type,
+        'nitrogen': nitrogen,
+        'phosphorus': phosphorus,
+        'potassium': potassium,
+        'rainfall': rainfall,
+        'temperature': temperature
+    }
+
+def calculate_range_score(value, optimal_range):
+    """Calculate a score (0-100) based on how close a value is to the optimal range"""
+    if value == 0:
+        return 50  # Neutral score for missing data
+    
+    min_val, max_val = optimal_range
+    
+    if min_val <= value <= max_val:
+        return 100  # Perfect score
+    elif value < min_val:
+        # Score decreases as value gets further from minimum
+        deviation = (min_val - value) / min_val
+        return max(0, 100 - (deviation * 100))
+    else:
+        # Score decreases as value gets further from maximum
+        deviation = (value - max_val) / max_val
+        return max(0, 100 - (deviation * 100))
+
+def get_fallback_analysis(filename):
+    """
+    Enhanced fallback analysis when OpenAI model is not available.
+    """
+    # Try to extract information from filename
+    filename_lower = filename.lower()
+    
+    # Determine pesticide type based on filename patterns
+    if any(word in filename_lower for word in ['neem', 'organic', 'bio', 'natural']):
+        return {
+            'pesticide': 'Organic/Neem-based Pesticide',
+            'confidence': 85,
+            'safety': 'Safe',
+            'recommendation': 'This appears to be an organic pesticide, likely neem-based. Safe for organic farming and beneficial insects when used properly. Apply during evening hours to minimize impact on pollinators. Effective against soft-bodied insects, aphids, and whiteflies. Can be used up to harvest time.',
+            'active_ingredients': ['Azadirachtin', 'Neem oil extract'],
+            'filename': filename,
+            'analysis_method': 'Filename Pattern Analysis',
+            'analysis_time': 0.05
+        }
+    elif any(word in filename_lower for word in ['roundup', 'glyphosate', 'herbicide']):
+        return {
+            'pesticide': 'Glyphosate-based Herbicide',
+            'confidence': 88,
+            'safety': 'Caution',
+            'recommendation': 'This appears to be a glyphosate-based herbicide. Non-selective - will kill all vegetation. Use with caution around desired plants. Wear protective equipment including gloves and eye protection. Avoid application during windy conditions. Do not spray when rain is expected within 6 hours.',
+            'active_ingredients': ['Glyphosate', 'Surfactants'],
+            'filename': filename,
+            'analysis_method': 'Filename Pattern Analysis',
+            'analysis_time': 0.05
+        }
+    elif any(word in filename_lower for word in ['insecticide', 'pesticide', 'malathion', 'chlorpyrifos']):
+        return {
+            'pesticide': 'Chemical Insecticide',
+            'confidence': 80,
+            'safety': 'High Risk',
+            'recommendation': 'This appears to be a chemical insecticide. High toxicity - use full protective equipment including respirator, gloves, and protective clothing. Follow strict safety protocols. Apply only when necessary and follow all label instructions carefully. Keep away from water sources and beneficial insects.',
+            'active_ingredients': ['Various chemical compounds'],
+            'filename': filename,
+            'analysis_method': 'Filename Pattern Analysis',
+            'analysis_time': 0.05
+        }
+    else:
+        # Generic pesticide analysis
+        return {
+            'pesticide': 'General Purpose Pesticide',
+            'confidence': 70,
+            'safety': 'Caution',
+            'recommendation': 'Unable to identify specific pesticide type. Follow all label instructions carefully. Use protective equipment including gloves and eye protection. Apply according to manufacturer guidelines. Store safely away from children and pets.',
+            'active_ingredients': ['Refer to product label'],
+            'filename': filename,
+            'analysis_method': 'Generic Fallback Analysis',
+            'analysis_time': 0.05
+        }
+
+# Template filter for currency formatting
+@main_bp.app_template_filter('currency')
+def currency_format(value):
+    """Format currency for templates"""
+    try:
+        return f"₹{float(value):,.0f}"
+    except (ValueError, TypeError):
+        return "₹0"
+
+# Home page
+@main_bp.route('/')
+def index():
+    return render_template('index.html')
+
+# About page
+@main_bp.route('/about')
+def about():
+    return render_template('about.html')
+
+# Contact page
+@main_bp.route('/contact', methods=['GET', 'POST'])
+def contact():
+    success_message = None
+    error_message = None
+    
+    if request.method == 'POST':
+        try:
+            from email_service import email_service
+            
+            name = request.form.get('name')
+            email = request.form.get('email')
+            subject = request.form.get('subject', 'General Inquiry')
+            message = request.form.get('message')
+            
+            if not all([name, email, message]):
+                error_message = "All fields are required."
+            else:
+                # Send email
+                success, result = email_service.send_contact_form_email(name, email, subject, message)
+                
+                if success:
+                    success_message = "Thank you for your message! We'll get back to you soon."
+                    flash(success_message, 'success')
+                else:
+                    error_message = "Sorry, there was an error sending your message. Please try again later."
+                    flash(error_message, 'error')
+                    
+        except Exception as e:
+            error_message = f"An error occurred: {str(e)}"
+            flash(error_message, 'error')
+    
+    return render_template('contact.html', success_message=success_message, error_message=error_message)
+
+# Login page
+@main_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('main.dashboard'))
+        else:
+            flash('Invalid username or password')
+    
+    return render_template('login.html')
+
+# Signup page
+@main_bp.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        language = request.form.get('language', 'en')
+        
+        # Form validation
+        if not all([username, email, password, confirm_password]):
+            flash('All fields are required')
+            return render_template('signup.html')
+        
+        if password != confirm_password:
+            flash('Passwords do not match')
+            return render_template('signup.html')
+        
+        # Check if username or email already exists
+        user_exists = User.query.filter(
+            (User.username == username) | (User.email == email)
+        ).first()
+        
+        if user_exists:
+            flash('Username or email already exists')
+            return render_template('signup.html')
+        
+        # Create new user
+        new_user = User(username=username, email=email, language_preference=language)
+        new_user.set_password(password)
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash('Account created successfully! Please log in.')
+        return redirect(url_for('main.login'))
+    
+    return render_template('signup.html')
+
+# Logout route
+@main_bp.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.')
+    return redirect(url_for('main.index'))
+
+# User dashboard
+@main_bp.route('/dashboard')
+@login_required
+def dashboard():
+    try:
+        # Get recent predictions for the user
+        predictions = CropPrediction.query.filter_by(user_id=current_user.id).order_by(CropPrediction.created_at.desc()).limit(5).all()
+        return render_template('dashboard.html', predictions=predictions)
+    except Exception as e:
+        print(f"Dashboard error: {str(e)}")
+        return render_template('dashboard.html', predictions=[])
+
+# Crop Prediction page
+@main_bp.route('/crop-prediction', methods=['GET', 'POST'])
+@login_required
+def crop_prediction():
+    if request.method == 'POST':
+        try:
+            crop_type = request.form.get('crop_type')
+            season = request.form.get('season')
+            area = float(request.form.get('area'))
+            soil_type = request.form.get('soil_type', 'loam')
+            nitrogen = float(request.form.get('nitrogen', 0))
+            phosphorus = float(request.form.get('phosphorus', 0))
+            potassium = float(request.form.get('potassium', 0))
+            rainfall = float(request.form.get('rainfall', 0))
+            temperature = float(request.form.get('temperature', 25))
+            
+            # Use ML model for prediction if available, otherwise use enhanced prediction
+            if ML_MODEL_AVAILABLE:
+                try:
+                    prediction_data = get_ml_prediction(
+                        crop_type, season, area, soil_type, 
+                        nitrogen, phosphorus, potassium, rainfall, temperature
+                    )
+                except Exception as e:
+                    print(f"ML model error: {str(e)}. Using fallback prediction.")
+                    prediction_data = enhanced_crop_prediction(
+                        crop_type, season, area, soil_type, 
+                        nitrogen, phosphorus, potassium, rainfall, temperature
+                    )
+            else:
+                # Enhanced prediction model with multiple factors
+                prediction_data = enhanced_crop_prediction(
+                    crop_type, season, area, soil_type, 
+                    nitrogen, phosphorus, potassium, rainfall, temperature
+                )
+            
+            # Save prediction to database
+            prediction = CropPrediction(
+                user_id=current_user.id,
+                crop_type=crop_type,
+                season=season,
+                area=area,
+                prediction_result=prediction_data['result'],
+                yield_estimation=prediction_data['yield_estimation']
+            )
+            
+            db.session.add(prediction)
+            db.session.commit()
+            
+            flash('Prediction generated successfully!', 'success')
+            
+            return render_template('crop_prediction.html', 
+                                  prediction_result=prediction_data['result'],
+                                  yield_estimation=prediction_data['yield_estimation'],
+                                  suitability_score=prediction_data['suitability_score'],
+                                  recommendations=prediction_data['recommendations'])
+        
+        except ValueError as e:
+            flash(f'Error in input values: {str(e)}', 'error')
+        except Exception as e:
+            flash(f'An error occurred: {str(e)}', 'error')
+    
+    return render_template('crop_prediction.html')
+
+# View prediction history
+@main_bp.route('/predictions')
+@login_required
+def predictions():
+    user_predictions = CropPrediction.query.filter_by(user_id=current_user.id).order_by(CropPrediction.created_at.desc()).all()
+    
+    # Prepare data for charts
+    # Crop distribution data
+    crop_counts = {}
+    for prediction in user_predictions:
+        crop = prediction.crop_type
+        crop_counts[crop] = crop_counts.get(crop, 0) + 1
+    
+    crop_data = {
+        'labels': list(crop_counts.keys()),
+        'values': list(crop_counts.values())
+    }
+    
+    # Season distribution data
+    season_counts = {}
+    for prediction in user_predictions:
+        season = prediction.season
+        season_counts[season] = season_counts.get(season, 0) + 1
+    
+    season_data = {
+        'labels': list(season_counts.keys()),
+        'values': list(season_counts.values())
+    }
+    
+    return render_template('predictions.html',
+                         predictions=user_predictions,
+                         crop_data=crop_data,
+                         season_data=season_data)
+
+# View prediction detail
+@main_bp.route('/prediction/<int:prediction_id>')
+@login_required
+def prediction_detail(prediction_id):
+    prediction = CropPrediction.query.filter_by(id=prediction_id, user_id=current_user.id).first_or_404()
+    return render_template('prediction_detail.html', prediction=prediction)
+
+# Yield Estimation page
+@main_bp.route('/yield-estimation', methods=['GET', 'POST'])
+@login_required
+def yield_estimation():
+    if request.method == 'POST':
+        # Get all form inputs
+        crop_type = request.form.get('crop_type')
+        area = float(request.form.get('area'))
+        soil_type = request.form.get('soil_type')
+        state = request.form.get('state')
+        irrigation = request.form.get('irrigation')
+        seed_quality = request.form.get('seed_quality')
+        fertilizer_usage = request.form.get('fertilizer_usage')
+        pesticide_usage = request.form.get('pesticide_usage')
+        technology_level = request.form.get('technology_level')
+        
+        # Map form inputs to ML model inputs
+        ml_inputs = map_yield_form_to_ml_inputs(
+            crop_type, area, soil_type, state, seed_quality,
+            fertilizer_usage, pesticide_usage, technology_level, irrigation
+        )
+        
+        # Use ML model for prediction if available, otherwise use enhanced prediction
+        if ML_MODEL_AVAILABLE:
+            try:
+                prediction_data = get_ml_prediction(
+                    ml_inputs['crop_type'], ml_inputs['season'], ml_inputs['area'],
+                    ml_inputs['soil_type'], ml_inputs['nitrogen'], ml_inputs['phosphorus'],
+                    ml_inputs['potassium'], ml_inputs['rainfall'], ml_inputs['temperature']
+                )
+            except Exception as e:
+                print(f"ML model error: {str(e)}. Using fallback prediction.")
+                prediction_data = enhanced_crop_prediction(
+                    ml_inputs['crop_type'], ml_inputs['season'], ml_inputs['area'],
+                    ml_inputs['soil_type'], ml_inputs['nitrogen'], ml_inputs['phosphorus'],
+                    ml_inputs['potassium'], ml_inputs['rainfall'], ml_inputs['temperature']
+                )
+        else:
+            # Enhanced prediction model with multiple factors
+            prediction_data = enhanced_crop_prediction(
+                ml_inputs['crop_type'], ml_inputs['season'], ml_inputs['area'],
+                ml_inputs['soil_type'], ml_inputs['nitrogen'], ml_inputs['phosphorus'],
+                ml_inputs['potassium'], ml_inputs['rainfall'], ml_inputs['temperature']
+            )
+        
+        # Save prediction to database
+        prediction = CropPrediction(
+            user_id=current_user.id,
+            crop_type=crop_type,
+            season=ml_inputs['season'],
+            area=area,
+            prediction_result=prediction_data['result'],
+            yield_estimation=prediction_data['yield_estimation']
+        )
+        
+        db.session.add(prediction)
+        db.session.commit()
+        
+        flash('Yield estimation generated successfully!', 'success')
+        
+        # For compatibility with the existing template, we need to extract some values
+        # Parse the yield estimation string to get numerical values
+        yield_estimation_text = prediction_data['yield_estimation']
+        try:
+            # Extract total yield and yield per hectare from the text
+            # Format is "Estimated yield: X.XX tons (Average: Y.YY tons/hectare)"
+            parts = yield_estimation_text.split()
+            total_yield = float(parts[2])
+            yield_per_hectare = float(parts[7])
+        except:
+            # Fallback values if parsing fails
+            total_yield = 0
+            yield_per_hectare = 0
+        
+        # Create yield_result object compatible with the template
+        yield_result = {
+            'yield_per_hectare': round(yield_per_hectare, 2),
+            'total_yield': round(total_yield, 2),
+            'confidence': prediction_data.get('suitability_score', 75),
+            'market_price': 1500,  # Placeholder value
+            'estimated_value': round(total_yield * 1500),  # Placeholder calculation
+            'suggestions': prediction_data.get('recommendations', []),
+            'chart_data': None  # Placeholder for chart data
+        }
+        
+        return render_template('yield_estimation.html',
+                              crop_type=crop_type,
+                              area=area,
+                              soil_type=soil_type,
+                              irrigation=irrigation,
+                              yield_result=yield_result)
+    
+    return render_template('yield_estimation.html')
+
+# Weather Forecast page
+@main_bp.route('/weather', methods=['GET', 'POST'])
+@login_required
+def weather():
+    weather_data = None
+    forecast_data = None
+    error = None
+
+    if request.method == "POST":
+        city = request.form.get("location")
+        try:
+            # Current weather
+            weather_url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={WEATHER_API_KEY}&units=metric"
+            weather_response = requests.get(weather_url).json()
+
+            if weather_response.get("cod") != 200:
+                error = weather_response.get("message", "City not found")
+            else:
+                weather_data = weather_response
+
+                # Forecast (5 days, 3-hour interval)
+                forecast_url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={WEATHER_API_KEY}&units=metric"
+                forecast_response = requests.get(forecast_url).json()
+
+                # Process into daily averages
+                labels, temps, humidity = [], [], []
+                daily_data = {}
+
+                for entry in forecast_response["list"]:
+                    date = entry["dt_txt"].split(" ")[0]
+                    if date not in daily_data:
+                        daily_data[date] = {"temps": [], "humidity": []}
+                    daily_data[date]["temps"].append(entry["main"]["temp"])
+                    daily_data[date]["humidity"].append(entry["main"]["humidity"])
+
+                for date, values in list(daily_data.items())[:5]:  # limit to 5 days
+                    labels.append(date)
+                    temps.append(sum(values["temps"]) / len(values["temps"]))
+                    humidity.append(sum(values["humidity"]) / len(values["humidity"]))
+
+                forecast_data = {
+                    "labels": labels,
+                    "temperatures": temps,
+                    "humidity": humidity,
+                }
+
+        except Exception as e:
+            error = str(e)
+
+    return render_template(
+        "weather.html",
+        weather_data=weather_data,
+        forecast_data=forecast_data,
+        error=error,
+    )
+
+# Pest Guide Page
+@main_bp.route('/pest-guide')
+@login_required
+def pest_guide():
+    pests = [
+        {
+            'name': 'Aphids',
+            'crops': 'Cotton, vegetables, fruits',
+            'symptoms': 'Curling of leaves, yellowing, stunted growth',
+            'management': 'Neem oil spray, introduce ladybugs, insecticidal soap',
+            'image': '/images/aphids.jpg'
+        },
+        {
+            'name': 'Whiteflies',
+            'crops': 'Tomatoes, Cotton, Vegetables',
+            'symptoms': 'Yellowing leaves, sticky honeydew, sooty mold',
+            'management': 'Yellow sticky traps, neem oil, biological control',
+            'image': '/images/whiteflies.jpg'
+        },
+        {
+            'name': 'Thrips',
+            'crops': 'Onions, Peppers, Flowers',
+            'symptoms': 'Silver streaks on leaves, black dots, stunted growth',
+            'management': 'Blue sticky traps, predatory mites, insecticidal soap',
+            'image': '/images/thrips.jpg'
+        }
+    ]
+    return render_template('pest_guide.html', pests=pests)
+
+@main_bp.route('/pest-question', methods=['POST'])
+@login_required
+def pest_question():
+    pest_question = request.form.get('pest_question')
+    crop_type = request.form.get('crop_type')
+    urgent = request.form.get('urgent')
+    
+    # Here you would typically save to database and/or send to experts
+    # For now, we'll just flash a success message
+    
+    if urgent:
+        flash('Your urgent question has been submitted! Our experts will prioritize your request.', 'success')
+    else:
+        flash('Your question has been submitted! Our experts will respond soon.', 'success')
+    
+    return redirect(url_for('main.pest_guide'))
+
+# Government Schemes page
+@main_bp.route('/gov-schemes')
+@login_required
+def gov_schemes():
+    schemes = [
+        {
+            'name': 'Pradhan Mantri Kisan Samman Nidhi (PM-KISAN)',
+            'description': 'Income support of Rs. 6000 per year to farmer families',
+            'eligibility': 'All small and marginal farmers with cultivable land',
+            'link': 'https://pmkisan.gov.in/'
+        },
+        {
+            'name': 'Pradhan Mantri Fasal Bima Yojana (PMFBY)',
+            'description': 'Crop insurance scheme with minimal premium',
+            'eligibility': 'All farmers growing notified crops',
+            'link': 'https://pmfby.gov.in/'
+        },
+        {
+            'name': 'Kisan Credit Card (KCC)',
+            'description': 'Credit facility for farmers with minimal interest rate',
+            'eligibility': 'All farmers, sharecroppers, and tenant farmers',
+            'link': 'https://www.pnbindia.in/kisan-credit-card.html'
+        },
+        {
+            'name': 'Soil Health Card Scheme',
+            'description': 'Soil testing and recommendations for nutrient application',
+            'eligibility': 'All farmers',
+            'link': 'https://www.soilhealth.dac.gov.in/'
+        },
+        {
+            'name': 'National Agriculture Market (e-NAM)',
+            'description': 'Online trading platform for agricultural commodities',
+            'eligibility': 'All farmers with registered accounts',
+            'link': 'https://www.enam.gov.in/'
+        }
+    ]
+    
+    return render_template('gov_schemes.html', schemes=schemes)
+
+# Check Eligibility route
+@main_bp.route('/check-eligibility', methods=['POST'])
+@login_required
+def check_eligibility():
+    """Check eligibility for various agricultural schemes based on user input"""
+    land_holding = float(request.form.get('land_holding', 0))
+    farmer_category = request.form.get('farmer_category')
+    state = request.form.get('state')
+    
+    # Convert acres to hectares (1 acre = 0.4047 hectares)
+    land_hectares = land_holding * 0.4047
+    
+    eligible_schemes = []
+    
+    # PM-KISAN - All landholding farmers
+    if land_holding > 0:
+        eligible_schemes.append({
+            'name': 'PM-KISAN',
+            'description': 'Income support of ₹6,000 per year for all landholding farmers'
+        })
+    
+    # Kisan Credit Card - All farmers
+    eligible_schemes.append({
+        'name': 'Kisan Credit Card (KCC)',
+        'description': 'Credit facility for agricultural needs at subsidized interest rates'
+    })
+    
+    # PMFBY - All farmers growing notified crops
+    eligible_schemes.append({
+        'name': 'Pradhan Mantri Fasal Bima Yojana (PMFBY)',
+        'description': 'Crop insurance with low premium rates'
+    })
+    
+    # Schemes based on farmer category
+    if farmer_category in ['marginal', 'small']:
+        eligible_schemes.append({
+            'name': 'PMKSY - Micro Irrigation',
+            'description': 'Higher subsidy rates for micro-irrigation systems for small/marginal farmers'
+        })
+        
+        eligible_schemes.append({
+            'name': 'Sub-Mission on Agricultural Mechanization',
+            'description': 'Higher subsidy for agricultural machinery and equipment'
+        })
+    
+    # Soil Health Card - All farmers
+    eligible_schemes.append({
+        'name': 'Soil Health Card Scheme',
+        'description': 'Free soil testing and nutrient recommendations'
+    })
+    
+    # National Food Security Mission - Based on state and crops
+    if state in ['Uttar Pradesh', 'Bihar', 'West Bengal', 'Madhya Pradesh', 'Maharashtra']:
+        eligible_schemes.append({
+            'name': 'National Food Security Mission (NFSM)',
+            'description': 'Support for increasing production of rice, wheat, pulses, and coarse cereals'
+        })
+    
+    # Agriculture Infrastructure Fund - For larger farmers or groups
+    if farmer_category in ['medium', 'large'] or land_hectares > 2:
+        eligible_schemes.append({
+            'name': 'Agriculture Infrastructure Fund (AIF)',
+            'description': 'Credit support for post-harvest management infrastructure'
+        })
+    
+    flash(f'Found {len(eligible_schemes)} eligible schemes for your profile!', 'success')
+    return render_template('gov_schemes.html', 
+                         schemes=[], 
+                         eligible_schemes=eligible_schemes,
+                         land_holding=land_holding,
+                         farmer_category=farmer_category,
+                         state=state)
+
+# Enhanced Pesticide Analysis page with OpenAI integration
+@main_bp.route('/pesticide-analysis', methods=['GET', 'POST'])
+@login_required
+def pesticide_analysis():
+    prediction = None
+    error = None
+    uploaded_filename = None
+    analysis_stats = None
+
+    if request.method == 'POST':
+        try:
+            # Check if file was uploaded
+            if 'image' not in request.files:
+                error = 'No file part in request.'
+            else:
+                file = request.files['image']
+                if file.filename == '':
+                    error = 'No selected file.'
+                elif file and allowed_file(file.filename):
+                    # Secure the filename and add timestamp
+                    filename = secure_filename(file.filename)
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_')
+                    filename = timestamp + filename
+                    filepath = os.path.join(UPLOAD_FOLDER, filename)
+                    
+                    # Save the uploaded file
+                    file.save(filepath)
+                    uploaded_filename = filename
+                    
+                    # Record analysis start time
+                    analysis_start = time.time()
+                    
+                    # Analyze the pesticide image using OpenAI
+                    print(f"Starting pesticide analysis for {filename}")
+                    prediction = analyze_pesticide_with_ai(filepath, filename)
+                    
+                    # Calculate total analysis time
+                    total_analysis_time = round(time.time() - analysis_start, 2)
+                    
+                    # Create analysis statistics
+                    analysis_stats = {
+                        'total_time': total_analysis_time,
+                        'model_time': prediction.get('analysis_time', 'N/A'),
+                        'method': prediction.get('analysis_method', 'Unknown'),
+                        'api_status': prediction.get('api_status', 'Unknown'),
+                        'file_size': round(os.path.getsize(filepath) / 1024, 2),  # KB
+                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                    
+                    flash(f'Image analyzed successfully using {prediction.get("analysis_method", "AI")}!', 'success')
+                    
+                    # Log successful analysis
+                    print(f"Analysis completed successfully in {total_analysis_time}s using {prediction.get('analysis_method', 'Unknown')}")
+                    
+                else:
+                    error = 'Invalid file type. Please upload PNG, JPG, JPEG, GIF, or WebP files only.'
+                    
+        except Exception as e:
+            error = f'Error processing image: {str(e)}'
+            print(f"Pesticide analysis error: {str(e)}")
+
+    # Check API status for display
+    api_status = None
+    if MODEL_AVAILABLE:
+        try:
+            api_available, api_message = test_api_connection()
+            api_status = {
+                'available': api_available,
+                'message': api_message,
+                'model_type': 'OpenAI GPT-4 Vision' if api_available else 'Fallback Analysis'
+            }
+        except Exception as e:
+            api_status = {
+                'available': False,
+                'message': f'Connection test failed: {str(e)}',
+                'model_type': 'Fallback Analysis'
+            }
+    else:
+        api_status = {
+            'available': False,
+            'message': 'OpenAI model not loaded',
+            'model_type': 'Pattern Analysis'
+        }
+
+    return render_template('pesticide_analysis.html',
+                         prediction=prediction,
+                         error=error,
+                         uploaded_filename=uploaded_filename,
+                         analysis_stats=analysis_stats,
+                         api_status=api_status)
+
+# Crop Problem Analysis page with OpenAI integration
+@main_bp.route('/crop-problem-analysis', methods=['GET', 'POST'])
+@login_required
+def crop_problem_analysis():
+    prediction = None
+    error = None
+    uploaded_filename = None
+
+    if request.method == 'POST':
+        try:
+            # Check if file was uploaded
+            if 'image' not in request.files:
+                error = 'No file part in request.'
+            else:
+                file = request.files['image']
+                if file.filename == '':
+                    error = 'No selected file.'
+                elif file and allowed_file(file.filename):
+                    # Secure the filename and add timestamp
+                    filename = secure_filename(file.filename)
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_')
+                    filename = timestamp + filename
+                    filepath = os.path.join(UPLOAD_FOLDER, filename)
+                    
+                    # Save the uploaded file
+                    file.save(filepath)
+                    uploaded_filename = filename
+                    
+                    # Analyze the crop problem image using OpenAI
+                    print(f"Starting crop problem analysis for {filename}")
+                    if MODEL_AVAILABLE:
+                        prediction = analyze_crop_problem_with_ai(filepath, filename)
+                    else:
+                        # Fallback analysis for crop problems
+                        prediction = {
+                            'problem': 'Unable to analyze crop problem',
+                            'confidence': 50,
+                            'severity': 'Unknown',
+                            'recommendation': 'Please consult an agricultural expert for proper diagnosis.',
+                            'possible_causes': ['Disease', 'Pest damage', 'Nutrient deficiency', 'Environmental stress'],
+                            'filename': filename,
+                            'analysis_method': 'Fallback Analysis',
+                            'analysis_time': 0.1
+                        }
+                    
+                    flash(f'Crop problem analyzed successfully!', 'success')
+                    
+                else:
+                    error = 'Invalid file type. Please upload PNG, JPG, JPEG, GIF, or WebP files only.'
+                    
+        except Exception as e:
+            error = f'Error processing image: {str(e)}'
+            print(f"Crop problem analysis error: {str(e)}")
+
+    return render_template('crop_problem_analysis.html',
+                         prediction=prediction,
+                         error=error,
+                         uploaded_filename=uploaded_filename)
+
+# Enhanced API endpoint for pesticide analysis
+@main_bp.route('/api/analyze-pesticide', methods=['POST'])
+@login_required
+def api_analyze_pesticide():
+    """Enhanced API endpoint for pesticide analysis with OpenAI integration"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+        
+        file = request.files['image']
+        if file.filename == '' or not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file type'}), 400
+        
+        # Save file temporarily
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_')
+        filename = timestamp + filename
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        file.save(filepath)
+        
+        # Analyze image using OpenAI
+        analysis_start = time.time()
+        result = analyze_pesticide_with_ai(filepath, filename)
+        total_time = round(time.time() - analysis_start, 2)
+        
+        # Add API-specific metadata
+        api_response = {
+            'success': True,
+            'result': result,
+            'metadata': {
+                'timestamp': datetime.now().isoformat(),
+                'total_analysis_time': total_time,
+                'file_size_kb': round(os.path.getsize(filepath) / 1024, 2),
+                'analysis_method': result.get('analysis_method', 'Unknown'),
+                'api_version': '2.0',
+                'model_available': MODEL_AVAILABLE
+            }
+        }
+        
+        return jsonify(api_response)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+# API status check route
+@main_bp.route('/api/status')
+def api_status():
+    """Check API and model status"""
+    status_info = {
+        'service': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'openai_model_available': MODEL_AVAILABLE
+    }
+    
+    if MODEL_AVAILABLE:
+        try:
+            api_available, api_message = test_api_connection()
+            status_info.update({
+                'openai_api_available': api_available,
+                'openai_api_message': api_message,
+                'analysis_methods': ['OpenAI GPT-4 Vision', 'Pattern Analysis', 'Emergency Fallback']
+            })
+        except Exception as e:
+            status_info.update({
+                'openai_api_available': False,
+                'openai_api_message': f'Connection test failed: {str(e)}',
+                'analysis_methods': ['Pattern Analysis', 'Emergency Fallback']
+            })
+    else:
+        status_info.update({
+            'openai_api_available': False,
+            'openai_api_message': 'Model not loaded',
+            'analysis_methods': ['Emergency Fallback']
+        })
+    
+    return jsonify(status_info)
+
+# Batch analysis route for multiple images
+@main_bp.route('/api/batch-analyze', methods=['POST'])
+@login_required
+def batch_analyze_pesticides():
+    """Analyze multiple pesticide images at once"""
+    try:
+        if 'images' not in request.files:
+            return jsonify({'error': 'No images provided'}), 400
+        
+        files = request.files.getlist('images')
+        if not files or len(files) == 0:
+            return jsonify({'error': 'No images selected'}), 400
+        
+        if len(files) > 10:  # Limit batch size
+            return jsonify({'error': 'Maximum 10 images allowed per batch'}), 400
+        
+        results = []
+        batch_start = time.time()
+        
+        for i, file in enumerate(files):
+            if file and allowed_file(file.filename):
+                # Save file
+                filename = secure_filename(file.filename)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_')
+                filename = f"{timestamp}{i:02d}_{filename}"
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                file.save(filepath)
+                
+                # Analyze
+                try:
+                    result = analyze_pesticide_with_ai(filepath, filename)
+                    results.append({
+                        'index': i,
+                        'filename': file.filename,
+                        'success': True,
+                        'result': result
+                    })
+                except Exception as e:
+                    results.append({
+                        'index': i,
+                        'filename': file.filename,
+                        'success': False,
+                        'error': str(e)
+                    })
+            else:
+                results.append({
+                    'index': i,
+                    'filename': file.filename if file else 'unknown',
+                    'success': False,
+                    'error': 'Invalid file type'
+                })
+        
+        batch_time = round(time.time() - batch_start, 2)
+        
+        return jsonify({
+            'success': True,
+            'batch_results': results,
+            'metadata': {
+                'total_images': len(files),
+                'successful_analyses': sum(1 for r in results if r['success']),
+                'failed_analyses': sum(1 for r in results if not r['success']),
+                'batch_time': batch_time,
+                'timestamp': datetime.now().isoformat()
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+# Market Trends page
+@main_bp.route('/market-trends')
+@login_required
+def market_trends():
+    return render_template('market_trends.html')
+
+# Crop Dashboard route for graphical analysis
+@main_bp.route('/crop-dashboard')
+@login_required
+def crop_dashboard():
+    # Get user's crop predictions for visualization
+    user_predictions = CropPrediction.query.filter_by(user_id=current_user.id).order_by(CropPrediction.created_at.desc()).all()
+    
+    # Prepare data for charts
+    # Crop distribution data
+    crop_counts = {}
+    for prediction in user_predictions:
+        crop = prediction.crop_type
+        crop_counts[crop] = crop_counts.get(crop, 0) + 1
+    
+    crop_data = {
+        'labels': list(crop_counts.keys()),
+        'values': list(crop_counts.values())
+    }
+    
+    # Season distribution data
+    season_counts = {}
+    for prediction in user_predictions:
+        season = prediction.season
+        season_counts[season] = season_counts.get(season, 0) + 1
+    
+    season_data = {
+        'labels': list(season_counts.keys()),
+        'values': list(season_counts.values())
+    }
+    
+    # Yield data over time
+    yield_data = []
+    dates = []
+    for prediction in user_predictions:
+        if prediction.yield_estimation:
+            # Extract yield value from text (simplified approach)
+            try:
+                yield_value = float(prediction.yield_estimation.split()[2])
+                yield_data.append(yield_value)
+                dates.append(prediction.created_at.strftime('%Y-%m-%d'))
+            except:
+                pass
+    
+    yield_chart_data = {
+        'dates': dates,
+        'yields': yield_data
+    }
+    
+    # Convert data to JSON strings for proper JavaScript handling
+    import json
+    crop_data_json = json.dumps(crop_data)
+    season_data_json = json.dumps(season_data)
+    yield_data_json = json.dumps(yield_chart_data)
+    
+    return render_template('crop_dashboard.html',
+                         predictions=user_predictions,
+                         crop_data=crop_data,
+                         season_data=season_data,
+                         yield_data=yield_chart_data,
+                         crop_data_json=crop_data_json,
+                         season_data_json=season_data_json,
+                         yield_data_json=yield_data_json)
+
+# Health check route
+@main_bp.route('/health')
+def health():
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "openai_model_available": MODEL_AVAILABLE,
+        "ml_model_available": ML_MODEL_AVAILABLE,
+        "version": "2.0"
+    })

@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}AgriX - Crop Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+    .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 2rem;
+    }
+    
+    .dashboard-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+        margin-bottom: 1.5rem;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
+    
+    .card-header {
+        background: linear-gradient(135deg, #2E7D32, #4CAF50);
+        color: white;
+        border-radius: 12px 12px 0 0 !important;
+    }
+    
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2E7D32;
+        margin: 1rem 0;
+    }
+    
+    .stat-label {
+        font-size: 1rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero-section" style="padding: 3rem 0; margin-bottom: 2rem;">
+    <div class="container hero-content">
+        <h1 class="hero-title" style="font-size: 2.5rem;">
+            <i class="fas fa-chart-bar me-3"></i>Crop Analysis Dashboard
+        </h1>
+        <p class="hero-subtitle" style="font-size: 1.2rem;">Visualize your agricultural data and predictions</p>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-4">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="stat-number">{{ predictions|length }}</div>
+                    <div class="stat-label">Total Predictions</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="stat-number">{{ crop_data.labels|length }}</div>
+                    <div class="stat-label">Crop Types</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="stat-number">{{ season_data.labels|length }}</div>
+                    <div class="stat-label">Seasons Analyzed</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-4">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="stat-number">{{ yield_data.yields|length }}</div>
+                    <div class="stat-label">Yield Records</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts Section -->
+    <div class="row">
+        <!-- Crop Distribution Chart -->
+        <div class="col-md-6 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-seedling me-2"></i>Crop Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="cropChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Season Distribution Chart -->
+        <div class="col-md-6 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-sun me-2"></i>Season Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="seasonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Yield Trend Chart -->
+        <div class="col-md-12 mb-4">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Yield Trends
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="yieldChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Predictions Table -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card dashboard-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Predictions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if predictions|length > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Crop Type</th>
+                                    <th>Season</th>
+                                    <th>Area (ha)</th>
+                                    <th>Prediction Date</th>
+                                    <th>Suitability</th>
+                                    <th>Estimated Yield</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prediction in predictions[:10] %}
+                                <tr>
+                                    <td>{{ prediction.crop_type }}</td>
+                                    <td>{{ prediction.season }}</td>
+                                    <td>{{ prediction.area }}</td>
+                                    <td>{{ prediction.created_at.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        {% if prediction.suitability_score %}
+                                        <span class="badge bg-{% if prediction.suitability_score >= 80 %}success{% elif prediction.suitability_score >= 60 %}warning{% else %}danger{% endif %}">
+                                            {{ prediction.suitability_score }}%
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ prediction.yield_estimation or 'N/A' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-center">No predictions found. Start by making a crop prediction.</p>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('main.crop_prediction') }}" class="btn btn-primary">
+                            <i class="fas fa-play me-2"></i>Start Prediction
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Prepare data for charts
+        var cropData = JSON.parse('{{ crop_data_json|safe }}');
+        var seasonData = JSON.parse('{{ season_data_json|safe }}');
+        var yieldData = JSON.parse('{{ yield_data_json|safe }}');
+        
+        // Crop Distribution Chart
+        var cropCtx = document.getElementById('cropChart').getContext('2d');
+        var cropChart = new Chart(cropCtx, {
+            type: 'doughnut',
+            data: {
+                labels: cropData.labels,
+                datasets: [{
+                    data: cropData.values,
+                    backgroundColor: [
+                        '#2E7D32',
+                        '#4CAF50',
+                        '#81C784',
+                        '#A5D6A7',
+                        '#C8E6C9',
+                        '#1B5E20',
+                        '#388E3C',
+                        '#66BB6A'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Crop Distribution'
+                    }
+                }
+            }
+        });
+        
+        // Season Distribution Chart
+        var seasonCtx = document.getElementById('seasonChart').getContext('2d');
+        var seasonChart = new Chart(seasonCtx, {
+            type: 'bar',
+            data: {
+                labels: seasonData.labels,
+                datasets: [{
+                    label: 'Number of Predictions',
+                    data: seasonData.values,
+                    backgroundColor: [
+                        '#FFC107',
+                        '#FFB300',
+                        '#FFA000',
+                        '#FF8F00'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Season Distribution'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Yield Trend Chart
+        var yieldCtx = document.getElementById('yieldChart').getContext('2d');
+        var yieldChart = new Chart(yieldCtx, {
+            type: 'line',
+            data: {
+                labels: yieldData.dates,
+                datasets: [{
+                    label: 'Estimated Yield (tons)',
+                    data: yieldData.yields,
+                    borderColor: '#2E7D32',
+                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Yield Trends Over Time'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

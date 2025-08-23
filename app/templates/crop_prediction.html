@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}AgriX - Crop Prediction{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<a href="{{ url_for('main.dashboard') }}" class="back-button">
+    <i class="fas fa-arrow-left"></i>
+    Back to Dashboard
+</a>
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Crop Prediction</h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Enter your field details to get crop recommendations</p>
+                
+                <form method="POST" action="{{ url_for('main.crop_prediction') }}">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="season" class="form-label">Season</label>
+                                <select class="form-select" id="season" name="season" required>
+                                    <option value="" selected disabled>Select a season</option>
+                                    <option value="kharif">Kharif (Monsoon)</option>
+                                    <option value="rabi">Rabi (Winter)</option>
+                                    <option value="zaid">Zaid (Summer)</option>
+                                    <option value="perennial">Perennial</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                    </div>
+                    
+                    
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="nitrogen" class="form-label">Nitrogen (kg/ha)</label>
+                                <input type="number" class="form-control" id="nitrogen" name="nitrogen">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="rainfall" class="form-label">Annual Rainfall (mm)</label>
+                                <input type="number" class="form-control" id="rainfall" name="rainfall">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="phosphorus" class="form-label">Phosphorus (kg/ha)</label>
+                                <input type="number" class="form-control" id="phosphorus" name="phosphorus">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="potassium" class="form-label">Potassium (kg/ha)</label>
+                                <input type="number" class="form-control" id="potassium" name="potassium">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="temperature" class="form-label">Average Temperature (°C)</label>
+                                <input type="number" class="form-control" id="temperature" name="temperature" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">Generate Prediction</button>
+                    </div>
+                </form>
+                
+                {% if prediction_result %}
+                <div class="prediction-result mt-4">
+                    <h4 class="text-success mb-3">🌱 Prediction Results</h4>
+                    <p class="lead">{{ prediction_result }}</p>
+                    <hr class="my-3">
+                    <p class="mb-3"><strong>{{ yield_estimation }}</strong></p>
+                    
+                    {% if suitability_score %}
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h5 class="card-title">Suitability Score</h5>
+                                    <div class="display-4 text-{% if suitability_score >= 90 %}success{% elif suitability_score >= 75 %}warning{% else %}danger{% endif %}">
+                                        {{ suitability_score }}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Score Interpretation</h6>
+                                    <ul class="mb-0 small">
+                                        <li><span class="text-success">90-100%:</span> Excellent conditions</li>
+                                        <li><span class="text-warning">75-89%:</span> Good conditions</li>
+                                        <li><span class="text-info">60-74%:</span> Fair conditions</li>
+                                        <li><span class="text-danger">Below 60%:</span> Poor conditions</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if recommendations %}
+                    <div class="card mt-3">
+                        <div class="card-header bg-info text-white">
+                            <h6 class="mb-0">🎯 Recommendations for Better Results</h6>
+                        </div>
+                        <div class="card-body">
+                            <ul class="mb-0">
+                                {% for recommendation in recommendations %}
+                                <li class="mb-2">{{ recommendation }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="text-center mt-4">
+                    <a href="{{ url_for('main.predictions') }}" class="btn btn-outline-primary me-2">View All Predictions</a>
+                    <a href="{{ url_for('main.yield_estimation') }}" class="btn btn-success">Detailed Yield Analysis</a>
+                </div>
+                {% else %}
+                <!-- Show helpful message when no prediction is available -->
+                <div class="mt-4">
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i>No Prediction Yet</h5>
+                        <p class="mb-0">Fill in the form above with your crop and field details, then click "Generate Prediction" to get personalized crop recommendations and yield estimates powered by our machine learning model.</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">Crop Selection Guide</h5>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="cropGuideAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingRice">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseRice">
+                                Rice Growing Guide
+                            </button>
+                        </h2>
+                        <div id="collapseRice" class="accordion-collapse collapse" data-bs-parent="#cropGuideAccordion">
+                            <div class="accordion-body">
+                                <p><strong>Ideal Conditions:</strong></p>
+                                <ul>
+                                    <li>Temperature: 20-35°C</li>
+                                    <li>Rainfall: 100-200 cm annually</li>
+                                    <li>Soil: Clay or clay-loam with good water retention</li>
+                                    <li>Season: Primarily Kharif (monsoon)</li>
+                                </ul>
+                                <p><strong>Nutrient Requirements:</strong></p>
+                                <ul>
+                                    <li>Nitrogen: 80-100 kg/ha</li>
+                                    <li>Phosphorus: 40-60 kg/ha</li>
+                                    <li>Potassium: 40-60 kg/ha</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingWheat">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseWheat">
+                                Wheat Growing Guide
+                            </button>
+                        </h2>
+                        <div id="collapseWheat" class="accordion-collapse collapse" data-bs-parent="#cropGuideAccordion">
+                            <div class="accordion-body">
+                                <p><strong>Ideal Conditions:</strong></p>
+                                <ul>
+                                    <li>Temperature: 15-25°C</li>
+                                    <li>Rainfall: 40-110 cm annually</li>
+                                    <li>Soil: Well-drained loam or clay-loam</li>
+                                    <li>Season: Rabi (winter)</li>
+                                </ul>
+                                <p><strong>Nutrient Requirements:</strong></p>
+                                <ul>
+                                    <li>Nitrogen: 100-120 kg/ha</li>
+                                    <li>Phosphorus: 50-60 kg/ha</li>
+                                    <li>Potassium: 40-50 kg/ha</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingMaize">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMaize">
+                                Maize/Corn Growing Guide
+                            </button>
+                        </h2>
+                        <div id="collapseMaize" class="accordion-collapse collapse" data-bs-parent="#cropGuideAccordion">
+                            <div class="accordion-body">
+                                <p><strong>Ideal Conditions:</strong></p>
+                                <ul>
+                                    <li>Temperature: 21-30°C</li>
+                                    <li>Rainfall: 50-100 cm annually</li>
+                                    <li>Soil: Well-drained loam to sandy-loam</li>
+                                    <li>Season: Both Kharif and Rabi</li>
+                                </ul>
+                                <p><strong>Nutrient Requirements:</strong></p>
+                                <ul>
+                                    <li>Nitrogen: 120-150 kg/ha</li>
+                                    <li>Phosphorus: 60-80 kg/ha</li>
+                                    <li>Potassium: 60-80 kg/ha</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}AgriX - Dashboard{% endblock %}
+
+{% block content %}
+<div class="hero-section" style="padding: 3rem 0; margin-bottom: 2rem;">
+    <div class="container hero-content">
+        <h1 class="hero-title" style="font-size: 2.5rem;">Welcome back, {{ current_user.username }}!</h1>
+        <p class="hero-subtitle" style="font-size: 1.2rem;">Your agricultural dashboard is ready</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tractor me-2"></i>Agricultural Services
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row row-cols-1 row-cols-md-3 g-4 stagger-animation">
+                    <!-- Crop Prediction -->
+                    <div class="col">
+                        <div class="card h-100 dashboard-card">
+                            <div class="card-body text-center">
+                                <div class="dashboard-icon">
+                                    <i class="fas fa-seedling"></i>
+                                </div>
+                                <h5 class="card-title">Crop Prediction</h5>
+                                <p class="card-text">Get intelligent recommendations for which crops to plant</p>
+                                <a href="{{ url_for('main.crop_prediction') }}" class="btn btn-primary">
+                                    <i class="fas fa-play me-2"></i>Start Prediction
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Yield Estimation -->
+                    <div class="col">
+                        <div class="card h-100 dashboard-card">
+                            <div class="card-body text-center">
+                                <div class="dashboard-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <h5 class="card-title">Yield Estimation</h5>
+                                <p class="card-text">Estimate your crop yield based on multiple factors</p>
+                                <a href="{{ url_for('main.yield_estimation') }}" class="btn btn-primary">
+                                    <i class="fas fa-calculator me-2"></i>Estimate Yield
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Weather Forecast -->
+                    <div class="col">
+                        <div class="card h-100 dashboard-card">
+                            <div class="card-body text-center">
+                                <div class="dashboard-icon">
+                                    <i class="fas fa-cloud-sun"></i>
+                                </div>
+                                <h5 class="card-title">Weather Forecast</h5>
+                                <p class="card-text">Get weather forecasts with graphical visualization</p>
+                                <a href="{{ url_for('main.weather') }}" class="btn btn-primary">
+                                    <i class="fas fa-cloud-sun me-2"></i>Check Weather
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Crop Analysis -->
+                    <div class="col">
+                        <div class="card h-100 dashboard-card">
+                            <div class="card-body text-center">
+                                <div class="dashboard-icon">
+                                    <i class="fas fa-microscope"></i>
+                                </div>
+                                <h5 class="card-title">AI Crop Analysis</h5>
+                                <p class="card-text">Analyze crop problems and get AI-powered solutions</p>
+                                <a href="{{ url_for('main.crop_problem_analysis') }}" class="btn btn-primary">
+                                    <i class="fas fa-search me-2"></i>Analyze Crop
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pest Guide -->
+                    <div class="col">
+                        <div class="card h-100 dashboard-card">
+                            <div class="card-body text-center">
+                                <div class="dashboard-icon">
+                                    <i class="fas fa-bug"></i>
+                                </div>
+                                <h5 class="card-title">Pest Guide</h5>
+                                <p class="card-text">Identify common pests and their management</p>
+                                <a href="{{ url_for('main.pest_guide') }}" class="btn btn-primary">
+                                    <i class="fas fa-book me-2"></i>View Guide
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Government Schemes -->
+                    <div class="col">
+                        <div class="card h-100 dashboard-card">
+                            <div class="card-body text-center">
+                                <div class="dashboard-icon">
+                                    <i class="fas fa-university"></i>
+                                </div>
+                                <h5 class="card-title">Government Schemes</h5>
+                                <p class="card-text">Access information about agricultural schemes</p>
+                                <a href="{{ url_for('main.gov_schemes') }}" class="btn btn-primary">
+                                    <i class="fas fa-file-alt me-2"></i>View Schemes
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Market Trends -->
+                    <div class="col">
+                        <div class="card h-100 dashboard-card">
+                            <div class="card-body text-center">
+                                <div class="dashboard-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <h5 class="card-title">Market Trends</h5>
+                                <p class="card-text">View current daily prices of commodities from various markets</p>
+                                <a href="{{ url_for('main.market_trends') }}" class="btn btn-success">
+                                    <i class="fas fa-trending-up me-2"></i>View Market Trends
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Prediction History -->
+                    <div class="col">
+                        <div class="card h-100 dashboard-card">
+                            <div class="card-body text-center">
+                                <div class="dashboard-icon">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <h5 class="card-title">My Predictions</h5>
+                                <p class="card-text">View your past crop predictions and yields</p>
+                                <a href="{{ url_for('main.predictions') }}" class="btn btn-primary">
+                                    <i class="fas fa-list me-2"></i>View History
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Crop Dashboard -->
+                    <div class="col">
+                        <div class="card h-100 dashboard-card">
+                            <div class="card-body text-center">
+                                <div class="dashboard-icon">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <h5 class="card-title">Crop Analysis Dashboard</h5>
+                                <p class="card-text">Visualize your crop data and predictions</p>
+                                <a href="{{ url_for('main.crop_dashboard') }}" class="btn btn-success">
+                                    <i class="fas fa-chart-line me-2"></i>View Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row animate-fade-up">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2"></i>Recent Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if predictions|length > 0 %}
+    <ul class="list-group">
+        {% for prediction in predictions[:3] %}
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <span>{{ prediction.crop_type }} ({{ prediction.season }})</span>
+                    <small class="text-muted">{{ prediction.created_at.strftime('%Y-%m-%d') }}</small>
+                </div>
+                <small>{{ prediction.prediction_result }}</small>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p class="text-center">No recent predictions found.</p>
+{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-cloud-sun me-2"></i>Weather Overview
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="dashboard-icon" style="font-size: 2rem; margin-bottom: 1rem;">
+                    <i class="fas fa-cloud-sun"></i>
+                </div>
+                <p>Check the current weather conditions for your location</p>
+                <a href="{{ url_for('main.weather') }}" class="btn btn-primary">
+                    <i class="fas fa-eye me-2"></i>Check Weather Now
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

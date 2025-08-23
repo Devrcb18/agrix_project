@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}AgriX - Government Schemes{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Agricultural Government Schemes</h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Access information about various government schemes and subsidies for farmers</p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 offset-md-3">
+                        <form method="GET" action="{{ url_for('main.gov_schemes') }}" class="d-flex">
+                            <select class="form-select me-2" name="category">
+                                <option value="">All Categories</option>
+                                <option value="subsidy" {% if request.args.get('category') == 'subsidy' %}selected{% endif %}>Subsidies</option>
+                                <option value="credit" {% if request.args.get('category') == 'credit' %}selected{% endif %}>Credit & Loans</option>
+                                <option value="insurance" {% if request.args.get('category') == 'insurance' %}selected{% endif %}>Insurance</option>
+                                <option value="infrastructure" {% if request.args.get('category') == 'infrastructure' %}selected{% endif %}>Infrastructure</option>
+                                <option value="innovation" {% if request.args.get('category') == 'innovation' %}selected{% endif %}>Innovation & Technology</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary">Filter</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Government Schemes Cards -->
+                <div class="row row-cols-1 row-cols-md-3 g-4">
+                    <!-- Subsidy Schemes -->
+                    {% if not request.args.get('category') or request.args.get('category') == 'subsidy' %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-success text-white">
+                                Pradhan Mantri Kisan Samman Nidhi (PM-KISAN)
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> Financial Support</p>
+                                <p><strong>Benefit:</strong> ₹6,000 per year direct income support in three equal installments</p>
+                                <p><strong>Eligibility:</strong> All landholding farmer families with cultivable landholding in their names</p>
+                                <p><strong>How to Apply:</strong> Online registration through PM-KISAN portal or Common Service Centers (CSC)</p>
+                                <p><a href="https://pmkisan.gov.in/" target="_blank" class="btn btn-outline-success">Official Website</a></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-success text-white">
+                                Pradhan Mantri Krishi Sinchai Yojana (PMKSY)
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> Irrigation Support</p>
+                                <p><strong>Benefit:</strong> Subsidy for micro-irrigation systems and improving water efficiency</p>
+                                <p><strong>Eligibility:</strong> All farmers, with special provisions for small and marginal farmers</p>
+                                <p><strong>How to Apply:</strong> Through respective state agriculture departments or district agriculture offices</p>
+                                <p><a href="https://pmksy.gov.in/" target="_blank" class="btn btn-outline-success">Official Website</a></p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Credit & Loans Schemes -->
+                    {% if not request.args.get('category') or request.args.get('category') == 'credit' %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-info text-white">
+                                Kisan Credit Card (KCC) Scheme
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> Credit Support</p>
+                                <p><strong>Benefit:</strong> Short-term credit for cultivation, post-harvest expenses, and farm asset maintenance</p>
+                                <p><strong>Eligibility:</strong> All farmers, tenant farmers, SHGs, and JLGs</p>
+                                <p><strong>How to Apply:</strong> Through banks, cooperative societies, or RRBs</p>
+                                <p><a href="https://www.nabard.org/content.aspx?id=470" target="_blank" class="btn btn-outline-info">Learn More</a></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-info text-white">
+                                Agriculture Infrastructure Fund (AIF)
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> Infrastructure Credit</p>
+                                <p><strong>Benefit:</strong> Medium to long term debt financing for post-harvest management infrastructure</p>
+                                <p><strong>Eligibility:</strong> Farmers, FPOs, Cooperatives, Startups, and Central/State agencies</p>
+                                <p><strong>How to Apply:</strong> Through online portal or participating banks</p>
+                                <p><a href="https://agriinfra.dac.gov.in/" target="_blank" class="btn btn-outline-info">Official Website</a></p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Insurance Schemes -->
+                    {% if not request.args.get('category') or request.args.get('category') == 'insurance' %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-warning text-dark">
+                                Pradhan Mantri Fasal Bima Yojana (PMFBY)
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> Crop Insurance</p>
+                                <p><strong>Benefit:</strong> Insurance coverage for crop failure due to natural calamities, pests & diseases</p>
+                                <p><strong>Premium:</strong> Kharif - 2%, Rabi - 1.5% of sum insured (balance paid by government)</p>
+                                <p><strong>Eligibility:</strong> All farmers growing notified crops in notified areas</p>
+                                <p><a href="https://pmfby.gov.in/" target="_blank" class="btn btn-outline-warning">Official Website</a></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-warning text-dark">
+                                Weather Based Crop Insurance Scheme (WBCIS)
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> Weather Insurance</p>
+                                <p><strong>Benefit:</strong> Protection against adverse weather events like rainfall, temperature, humidity, etc.</p>
+                                <p><strong>Eligibility:</strong> All farmers growing notified crops in notified areas</p>
+                                <p><strong>How to Apply:</strong> Through banks at the time of applying for crop loans</p>
+                                <p><a href="#" class="btn btn-outline-warning">Learn More</a></p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Infrastructure Schemes -->
+                    {% if not request.args.get('category') or request.args.get('category') == 'infrastructure' %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-secondary text-white">
+                                Gramin Bhandaran Yojana
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> Storage Infrastructure</p>
+                                <p><strong>Benefit:</strong> Capital subsidy for construction/renovation of rural godowns</p>
+                                <p><strong>Subsidy Rate:</strong> Up to 33.33% for general category (higher for SC/ST/Women/NE states)</p>
+                                <p><strong>Eligibility:</strong> Individuals, farmers, cooperatives, FPOs, companies, etc.</p>
+                                <p><a href="#" class="btn btn-outline-secondary">Learn More</a></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-secondary text-white">
+                                Soil Health Card Scheme
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> Soil Testing</p>
+                                <p><strong>Benefit:</strong> Free soil testing and recommendations for nutrient application</p>
+                                <p><strong>Eligibility:</strong> All farmers</p>
+                                <p><strong>How to Apply:</strong> Through local agriculture department or Krishi Vigyan Kendras</p>
+                                <p><a href="https://soilhealth.dac.gov.in/" target="_blank" class="btn btn-outline-secondary">Official Website</a></p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Innovation & Technology Schemes -->
+                    {% if not request.args.get('category') or request.args.get('category') == 'innovation' %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-primary text-white">
+                                Sub-Mission on Agricultural Mechanization (SMAM)
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> Farm Mechanization</p>
+                                <p><strong>Benefit:</strong> Financial assistance for purchase of agricultural machinery and equipment</p>
+                                <p><strong>Subsidy Rate:</strong> 40-50% for individual farmers, higher for SC/ST/Women/NE states</p>
+                                <p><strong>Eligibility:</strong> Individual farmers, groups of farmers, cooperatives, FPOs</p>
+                                <p><a href="#" class="btn btn-outline-primary">Learn More</a></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-header bg-primary text-white">
+                                National Food Security Mission (NFSM)
+                            </div>
+                            <div class="card-body">
+                                <p><strong>Category:</strong> Productivity Enhancement</p>
+                                <p><strong>Benefit:</strong> Support for increasing production of rice, wheat, pulses, coarse cereals, and nutri-cereals</p>
+                                <p><strong>Eligibility:</strong> All farmers in designated districts</p>
+                                <p><strong>Components:</strong> Distribution of high-yielding varieties, demonstration of improved technologies</p>
+                                <p><a href="https://www.nfsm.gov.in/" target="_blank" class="btn btn-outline-primary">Official Website</a></p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">Application Process Guidance</h5>
+            </div>
+            <div class="card-body">
+                <div class="accordion" id="schemeApplicationAccordion">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingDocs">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDocs">
+                                Required Documents
+                            </button>
+                        </h2>
+                        <div id="collapseDocs" class="accordion-collapse collapse show" data-bs-parent="#schemeApplicationAccordion">
+                            <div class="accordion-body">
+                                <p>Most agricultural schemes require the following documents:</p>
+                                <ul>
+                                    <li>Aadhaar Card</li>
+                                    <li>Land Records (Khatauni/Khata/Khasra)</li>
+                                    <li>Bank Account Details (linked with Aadhaar)</li>
+                                    <li>Passport-size Photographs</li>
+                                    <li>Mobile Number (for OTP verification)</li>
+                                    <li>Soil Health Card (for certain schemes)</li>
+                                    <li>Crop Sowing Certificate (for insurance schemes)</li>
+                                    <li>Caste Certificate (for SC/ST specific benefits)</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingProcess">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseProcess">
+                                General Application Process
+                            </button>
+                        </h2>
+                        <div id="collapseProcess" class="accordion-collapse collapse" data-bs-parent="#schemeApplicationAccordion">
+                            <div class="accordion-body">
+                                <ol>
+                                    <li><strong>Identify the Scheme:</strong> Select the appropriate scheme based on your farming needs</li>
+                                    <li><strong>Check Eligibility:</strong> Verify that you meet all eligibility criteria</li>
+                                    <li><strong>Document Preparation:</strong> Gather all required documents</li>
+                                    <li><strong>Application Submission:</strong> Apply through:
+                                        <ul>
+                                            <li>Online portals</li>
+                                            <li>Common Service Centers (CSCs)</li>
+                                            <li>Local agriculture department offices</li>
+                                            <li>Banks (for credit schemes)</li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Application Tracking:</strong> Keep the acknowledgment number for future reference</li>
+                                    <li><strong>Verification Process:</strong> Officials may conduct physical verification</li>
+                                    <li><strong>Approval & Benefit Transfer:</strong> Benefits are directly transferred to bank accounts</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="headingHelp">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseHelp">
+                                Where to Get Help
+                            </button>
+                        </h2>
+                        <div id="collapseHelp" class="accordion-collapse collapse" data-bs-parent="#schemeApplicationAccordion">
+                            <div class="accordion-body">
+                                <p>If you need assistance with applying for schemes, you can contact:</p>
+                                <ul>
+                                    <li><strong>Kisan Call Center:</strong> 1800-180-1551 (Toll Free)</li>
+                                    <li><strong>Block Agriculture Office:</strong> Your nearest block level agriculture office</li>
+                                    <li><strong>Krishi Vigyan Kendra (KVK):</strong> Agricultural extension centers in your district</li>
+                                    <li><strong>Common Service Centers (CSCs):</strong> Digital service centers in rural areas</li>
+                                    <li><strong>AgriX Assistance:</strong> Submit your query through our contact form for personalized guidance</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Scheme Eligibility Check</h5>
+            </div>
+            <div class="card-body">
+                <p class="lead">Check your eligibility for various agricultural schemes</p>
+                <form method="POST" action="{{ url_for('main.check_eligibility') }}">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="land_holding" class="form-label">Land Holding (Acres)</label>
+                                <input type="number" class="form-control" id="land_holding" name="land_holding" step="0.1" min="0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="farmer_category" class="form-label">Farmer Category</label>
+                                <select class="form-select" id="farmer_category" name="farmer_category" required>
+                                    <option value="" selected disabled>Select category</option>
+                                    <option value="marginal">Marginal Farmer (< 1 ha)</option>
+                                    <option value="small">Small Farmer (1-2 ha)</option>
+                                    <option value="semi_medium">Semi-Medium Farmer (2-4 ha)</option>
+                                    <option value="medium">Medium Farmer (4-10 ha)</option>
+                                    <option value="large">Large Farmer (> 10 ha)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="state" class="form-label">State</label>
+                                <select class="form-select" id="state" name="state" required>
+                                    <option value="" selected disabled>Select your state</option>
+                                    <option value="Andhra Pradesh">Andhra Pradesh</option>
+                                    <option value="Bihar">Bihar</option>
+                                    <option value="Gujarat">Gujarat</option>
+                                    <option value="Haryana">Haryana</option>
+                                    <option value="Karnataka">Karnataka</option>
+                                    <option value="Madhya Pradesh">Madhya Pradesh</option>
+                                    <option value="Maharashtra">Maharashtra</option>
+                                    <option value="Punjab">Punjab</option>
+                                    <option value="Tamil Nadu">Tamil Nadu</option>
+                                    <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                    <option value="West Bengal">West Bengal</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" class="btn btn-primary">Check Eligibility</button>
+                    </div>
+                </form>
+                
+                {% if eligible_schemes %}
+                <div class="alert alert-success mt-4">
+                    <h4 class="alert-heading">Eligible Schemes</h4>
+                    <p>Based on your information, you may be eligible for the following schemes:</p>
+                    <ul>
+                        {% for scheme in eligible_schemes %}
+                            <li><strong>{{ scheme.name }}:</strong> {{ scheme.description }}</li>
+                        {% endfor %}
+                    </ul>
+                    <hr>
+                    <p class="mb-0">For detailed information and application process, click on the scheme names above or contact your local agriculture office.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}AgriX - Weather Forecast{% endblock %}
+
+{% block extra_head %}
+<style>
+.weather-widget {
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    border-radius: var(--border-radius-lg);
+    padding: 2rem;
+    box-shadow: var(--shadow-xl);
+}
+
+.weather-icon-large {
+    width: 120px;
+    height: 120px;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.3));
+}
+
+.temperature-large {
+    font-size: 4rem;
+    font-weight: 700;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.weather-detail-card {
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: var(--border-radius-md);
+    padding: 1.5rem;
+    text-align: center;
+    transition: var(--transition-normal);
+}
+
+.weather-detail-card:hover {
+    background: rgba(255,255,255,0.2);
+    transform: translateY(-5px);
+}
+
+.forecast-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.9));
+    border: none;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+}
+
+.agricultural-alert {
+    border-left: 4px solid;
+    padding: 1rem 1.5rem;
+    margin: 1rem 0;
+    border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+}
+
+.alert-success { border-left-color: var(--success-color); background: linear-gradient(135deg, #E8F5E9, #C8E6C9); }
+.alert-warning { border-left-color: var(--warning-color); background: linear-gradient(135deg, #FFF8E1, #FFECB3); }
+.alert-info { border-left-color: var(--info-color); background: linear-gradient(135deg, #E3F2FD, #BBDEFB); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Weather Search -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-search me-2"></i>Weather Forecast
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('main.weather') }}" class="mb-4">
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </span>
+                            <input type="text" class="form-control" name="location" 
+                                   placeholder="Enter city name or location" required
+                                   value="{{ request.form.get('location', '') }}">
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-cloud-sun me-2"></i>Get Weather
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if error %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>{{ error }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if weather_data %}
+    <!-- Current Weather -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="weather-widget animate-fade-up">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="http://openweathermap.org/img/wn/{{ weather_data.weather[0].icon }}@2x.png"
+                             alt="{{ weather_data.weather[0].description }}" 
+                             class="weather-icon-large me-4">
+
+                            <div>
+                                <div class="temperature-large">{{ weather_data.main.temp|round }}°C</div>
+                                <h4 class="text-capitalize mb-0">{{ weather_data.weather[0].description }}</h4>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <h2 class="mb-0">
+                                    <i class="fas fa-map-marker-alt me-2"></i>{{ weather_data.name }}
+                                </h2>
+                                <p class="mb-0 opacity-75">{{ weather_data.sys.country }}</p>
+                            </div>
+                            <div class="col-6 text-end">
+                                <p class="mb-1"><strong>Feels like:</strong> {{ weather_data.main.feels_like|round }}°C</p>
+                                <p class="mb-0"><strong>Updated:</strong> {{ moment().format('HH:mm') }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <div class="weather-detail-card">
+                                    <i class="fas fa-tint fa-2x mb-2"></i>
+                                    <h6>Humidity</h6>
+                                    <h4>{{ weather_data.main.humidity }}%</h4>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="weather-detail-card">
+                                    <i class="fas fa-wind fa-2x mb-2"></i>
+                                    <h6>Wind Speed</h6>
+                                    <h4>{{ weather_data.wind.speed }} m/s</h4>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="weather-detail-card">
+                                    <i class="fas fa-thermometer-half fa-2x mb-2"></i>
+                                    <h6>Pressure</h6>
+                                    <h4>{{ weather_data.main.pressure }} hPa</h4>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="weather-detail-card">
+                                    <i class="fas fa-eye fa-2x mb-2"></i>
+                                    <h6>Visibility</h6>
+                                    <h4>{{ (weather_data.visibility / 1000)|round(1) }} km</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agricultural Impact & Forecast -->
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card forecast-card h-100">
+                <div class="card-header bg-transparent">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-seedling me-2 text-success"></i>Agricultural Impact
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if weather_data.main.temp < 10 %}
+                        <div class="agricultural-alert alert-warning">
+                            <i class="fas fa-snowflake me-2"></i>
+                            <strong>Frost Alert:</strong> Low temperature conditions. Consider protective measures for frost-sensitive crops.
+                        </div>
+                    {% elif weather_data.main.temp > 35 %}
+                        <div class="agricultural-alert alert-warning">
+                            <i class="fas fa-thermometer-full me-2"></i>
+                            <strong>Heat Alert:</strong> High temperature conditions. Ensure adequate irrigation and consider heat protection.
+                        </div>
+                    {% else %}
+                        <div class="agricultural-alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>Optimal Temperature:</strong> Current conditions are favorable for most crops.
+                        </div>
+                    {% endif %}
+
+                    {% if weather_data.main.humidity < 30 %}
+                        <div class="agricultural-alert alert-info">
+                            <i class="fas fa-tint-slash me-2"></i>
+                            <strong>Low Humidity:</strong> Increased evaporation expected. Consider additional irrigation.
+                        </div>
+                    {% elif weather_data.main.humidity > 80 %}
+                        <div class="agricultural-alert alert-warning">
+                            <i class="fas fa-tint me-2"></i>
+                            <strong>High Humidity:</strong> Increased disease risk. Monitor for fungal diseases.
+                        </div>
+                    {% else %}
+                        <div class="agricultural-alert alert-success">
+                            <i class="fas fa-balance-scale me-2"></i>
+                            <strong>Balanced Humidity:</strong> Current humidity levels are generally favorable.
+                        </div>
+                    {% endif %}
+
+                    {% if weather_data.wind.speed > 10 %}
+                        <div class="agricultural-alert alert-warning">
+                            <i class="fas fa-wind me-2"></i>
+                            <strong>High Wind Alert:</strong> Strong winds detected. Risk of crop lodging for tall crops.
+                        </div>
+                    {% endif %}
+
+                    <div class="mt-4">
+                        <h6><i class="fas fa-sun me-2"></i>Sun Schedule</h6>
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Sunrise</small>
+                                <div><strong>{{ weather_data.sys.sunrise | timestamp_to_time }}</strong></div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Sunset</small>
+                                <div><strong>{{ weather_data.sys.sunset | timestamp_to_time }}</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card forecast-card h-100">
+                <div class="card-header bg-transparent">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>5-Day Forecast Charts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if forecast_data %}
+                    <div style="height: 300px;">
+                        <canvas id="combinedChart"></canvas>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Extended forecast data will appear here</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weather Tips -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card forecast-card">
+                <div class="card-header bg-transparent">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-lightbulb me-2 text-warning"></i>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex">
+                                <i class="fas fa-droplet text-info me-3 mt-1"></i>
+                                <div>
+                                    <h6>Irrigation Planning</h6>
+                                    <small class="text-muted">Plan irrigation based on humidity and temperature forecasts.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex">
+                                <i class="fas fa-shield-alt text-success me-3 mt-1"></i>
+                                <div>
+                                    <h6>Crop Protection</h6>
+                                    <small class="text-muted">Use weather data to time pesticide and fertilizer applications.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="d-flex">
+                                <i class="fas fa-calendar-alt text-primary me-3 mt-1"></i>
+                                <div>
+                                    <h6>Harvest Timing</h6>
+                                    <small class="text-muted">Plan harvesting activities around favorable weather windows.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if forecast_data %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const forecastData = {{ forecast_data | tojson }};
+    const ctx = document.getElementById('combinedChart').getContext('2d');
+
+    // Gradient for temperature
+    const gradientTemp = ctx.createLinearGradient(0, 0, 0, 300);
+    gradientTemp.addColorStop(0, 'rgba(255,99,132,0.6)');
+    gradientTemp.addColorStop(1, 'rgba(255,99,132,0.05)');
+
+    // Gradient for humidity
+    const gradientHum = ctx.createLinearGradient(0, 0, 0, 300);
+    gradientHum.addColorStop(0, 'rgba(54,162,235,0.6)');
+    gradientHum.addColorStop(1, 'rgba(54,162,235,0.05)');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: forecastData.labels,
+            datasets: [
+                {
+                    label: 'Temperature (°C)',
+                    data: forecastData.temperatures,
+                    borderColor: 'rgba(255,99,132,1)',
+                    backgroundColor: gradientTemp,
+                    borderWidth: 3,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: 'rgba(255,99,132,1)',
+                    tension: 0.4,
+                    fill: true,
+                    yAxisID: 'y',
+                },
+                {
+                    label: 'Humidity (%)',
+                    data: forecastData.humidity,
+                    borderColor: 'rgba(54,162,235,1)',
+                    backgroundColor: gradientHum,
+                    borderWidth: 3,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: 'rgba(54,162,235,1)',
+                    tension: 0.4,
+                    fill: true,
+                    yAxisID: 'y1',
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                title: {
+                    display: true,
+                    text: '🌦 5-Day Weather Forecast',
+                    font: { size: 18, weight: 'bold' }
+                },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: { usePointStyle: true }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    titleFont: { size: 14, weight: 'bold' },
+                    bodyFont: { size: 13 },
+                    padding: 10
+                }
+            },
+            scales: {
+                x: {
+                    title: { display: true, text: 'Days' },
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: { display: true, text: 'Temperature (°C)' },
+                    grid: { color: 'rgba(255,99,132,0.1)' }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: { display: true, text: 'Humidity (%)' },
+                    grid: { drawOnChartArea: false },
+                    min: 0,
+                    max: 100
+                }
+            }
+        }
+    });
+});
+</script>
+{% endif %}
+
+{% endblock %}
