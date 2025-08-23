@@ -1,204 +1,155 @@
-{% extends "base.html" %}  
-{% block title %}Agrix{% endblock %}  
+{% extends "base.html" %}
+
+{% block title %}Agrix{% endblock %}
+
 {% block content %}
+   
 
-<style>
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background: linear-gradient(135deg, #e8f5e8 0%, #f0f8f0 100%);
-        min-height: 100vh;
-    }
-    /* --- existing CSS (unchanged) --- */
-</style>
-</head>
-<body>
-
-<!-- Loading Overlay -->
-<div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-content">
-        <i class="fas fa-seedling fa-3x text-success mb-3"></i>
-        <h4>Analyzing Your Crop</h4>
-        <p class="text-muted">AI is examining your image...</p>
-        <div class="progress mt-3" style="width: 200px;">
-            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
-        </div>
-    </div>
-</div>
-
-<section class="hero-section">
-    <div class="container text-center">
-        <h1 class="display-4 fw-bold">
-            <i class="fas fa-seedling me-3"></i>
-            Crop Problem Detection
-        </h1>
-        <p class="lead">Upload images of your crops to detect problems and get AI-powered preventive measures</p>
-    </div>
-</section>
+<header>
+  <h1>🌱 Crop Disease Detection</h1>
+</header>
 
 <div class="container">
-    <!-- Upload Section -->
-    <div class="row">
-        <div class="col-md-12 mb-4">
-            <div class="card">
-                <div class="card-header text-white">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-camera me-2"></i>Upload Crop Image for Analysis
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <p class="lead text-muted">Upload a clear image of your crop showing any signs of problems to get instant AI analysis.</p>
+  <div class="upload" onclick="document.getElementById('imageInput').click();">
+    <p>Click or drag & drop an image of your crop</p>
+    <input type="file" id="imageInput" accept="image/*" hidden>
+  </div>
+  <img id="preview" alt="Image preview">
 
-                    <!-- Upload Form -->
-                    <div class="mb-4">
-                        <div class="upload-area" onclick="document.getElementById('imageUpload').click();" id="uploadArea">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <h3>Drop your image here</h3>
-                            <p>Click here or drag and drop your image file</p>
-                            <p class="text-muted small">Supported formats: JPG, PNG, JPEG • Max size: 5MB</p>
-                        </div>
-                        <input type="file" class="form-control d-none" id="imageUpload" name="image" accept="image/*">
-                    </div>
-
-                    <!-- Image Preview -->
-                    <div class="mt-4 text-center d-none" id="imagePreviewContainer">
-                        <h5 class="text-primary">
-                            <i class="fas fa-eye me-2"></i>Image Preview
-                        </h5>
-                        <img id="imagePreview" class="image-preview mt-2" src="" alt="Crop Image Preview">
-                        <div class="mt-3">
-                            <button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="removeImage()">
-                                <i class="fas fa-times me-1"></i>Remove Image
-                            </button>
-                            <button type="button" class="btn btn-primary" onclick="analyzeImage()" id="analyzeBtn">
-                                <i class="fas fa-microscope me-2"></i>Analyze Crop Health
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <div class="results" id="results">
+    <h2>Analysis Results</h2>
+    <p><strong>Plant:</strong> <span id="plantName"></span></p>
+    <p><strong>Disease:</strong> <span id="diseaseName"></span></p>
+    <p><strong>Confidence:</strong> <span id="confidence"></span>%</p>
+    <p><strong>Description:</strong> <span id="description"></span></p>
+    
+    <div class="recommendations">
+      <h3>Recommendations</h3>
+      <ul id="recommendList"></ul>
     </div>
 
-    <!-- Analysis Results -->
-    <div class="row d-none" id="resultsSection">
-        <div class="col-md-12">
-            <div class="analysis-result">
-                <div class="result-header">
-                    <h3 class="mb-0">
-                        <i class="fas fa-robot me-2"></i>AI Analysis Results
-                    </h3>
-                    <p class="mb-0 mt-2 opacity-90">Powered by Nabta.ma Agricultural AI</p>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-4">
-                        <h4 class="text-primary"><i class="fas fa-diagnoses me-2"></i>Problem Identification</h4>
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
-                                <h5 class="card-title text-dark" id="problemName">Loading...</h5>
-                                <p class="card-text text-muted" id="problemDescription">Analyzing your crop image...</p>
-                                <div class="alert alert-info alert-custom">
-                                    <strong>Confidence Level:</strong>
-                                    <span class="confidence-badge ms-2" id="confidenceBadge">--</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6 mb-4">
-                        <h4 class="text-success"><i class="fas fa-shield-alt me-2"></i>Preventive Measures</h4>
-                        <div class="prevention-card">
-                            <h5><i class="fas fa-clock me-2"></i>Immediate Actions</h5>
-                            <ul id="immediateMeasures"><li>Loading recommendations...</li></ul>
-                            <h5 class="mt-3"><i class="fas fa-calendar-alt me-2"></i>Long-term Prevention</h5>
-                            <ul id="longTermMeasures"><li>Loading recommendations...</li></ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row mt-4">
-                    <div class="col-md-12">
-                        <h4 class="text-warning"><i class="fas fa-seedling me-2"></i>Recommended Solutions</h4>
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
-                                <h5><i class="fas fa-stethoscope me-2"></i>Treatment Options</h5>
-                                <ul id="solutions"><li>Loading treatment recommendations...</li></ul>
-                                <h5 class="mt-3"><i class="fas fa-lightbulb me-2"></i>Additional Insights</h5>
-                                <div id="additionalRecommendations" class="alert alert-info alert-custom">
-                                    <p class="mb-0">Loading additional insights...</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Buttons -->
-                        <div class="mt-3 text-center">
-                            <button type="button" class="btn btn-outline-primary" onclick="resetAnalysis()">
-                                <i class="fas fa-redo me-2"></i>Analyze Another Image
-                            </button>
-                            <button type="button" class="btn btn-outline-success ms-2" onclick="saveAsPDF()">
-                                <i class="fas fa-file-pdf me-2"></i>Save Report as PDF
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Error Message -->
-    <div class="row d-none" id="errorSection">
-        <div class="col-md-12">
-            <div class="alert alert-danger alert-custom">
-                <h4><i class="fas fa-exclamation-triangle me-2"></i>Analysis Error</h4>
-                <p id="errorMessage">Something went wrong during analysis.</p>
-                <button type="button" class="btn btn-outline-danger btn-sm mt-2" onclick="retryAnalysis()">
-                    <i class="fas fa-redo me-1"></i>Try Again
-                </button>
-            </div>
-        </div>
-    </div>
+    <button class="btn" onclick="downloadPDF()">📄 Download PDF Report</button>
+  </div>
 </div>
 
-<!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
 <script>
-    /* === your existing JS code (unchanged) === */
+  // ===== CONFIG =====
+const NABTA_API_KEY = "nabta_sk_1234567890abcdef1234567890abcdef";  
+const NABTA_API_URL = "https://api.nabta.ma/analyze";  
 
-    // Save report as PDF
-    async function saveAsPDF() {
-        const { jsPDF } = window.jspdf;
-        const element = document.querySelector('.analysis-result');
-        if (!element) {
-            alert("No analysis report available to save.");
+// ===== DOM ELEMENTS =====
+const imageInput = document.getElementById("imageInput");
+const preview = document.getElementById("preview");
+const resultsDiv = document.getElementById("results");
+const plantName = document.getElementById("plantName");
+const diseaseName = document.getElementById("diseaseName");
+const confidence = document.getElementById("confidence");
+const description = document.getElementById("description");
+const recommendList = document.getElementById("recommendList");
+const loadingOverlay = document.getElementById("loadingOverlay");
+
+// ===== IMAGE UPLOAD + PREVIEW =====
+imageInput.addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        preview.src = ev.target.result;
+        preview.style.display = "block";
+        analyzeImage(file); // trigger API call
+    };
+    reader.readAsDataURL(file);
+});
+
+// ===== API CALL =====
+async function analyzeImage(file) {
+    try {
+        showLoading();
+
+        const formData = new FormData();
+        formData.append("image", file);
+
+        const response = await fetch(NABTA_API_URL, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${NABTA_API_KEY}`
+            },
+            body: formData
+        });
+
+        if (!response.ok) throw new Error("Network error while analyzing");
+
+        const apiResponse = await response.json();
+        console.log("API Response:", apiResponse);
+
+        if (apiResponse.status !== "success") {
+            showError(apiResponse.message || "Analysis failed");
             return;
         }
 
-        const canvas = await html2canvas(element, { scale: 2 });
-        const imgData = canvas.toDataURL('image/png');
+        processResults(apiResponse.analysis);
 
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-
-        const imgWidth = pageWidth - 20;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-        let y = 10;
-        pdf.addImage(imgData, 'PNG', 10, y, imgWidth, imgHeight);
-
-        let heightLeft = imgHeight;
-        while (heightLeft > pageHeight - 20) {
-            y = heightLeft - imgHeight + 10;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 10, -y, imgWidth, imgHeight);
-            heightLeft -= pageHeight - 20;
-        }
-
-        pdf.save("Crop_Analysis_Report.pdf");
+    } catch (error) {
+        console.error("Error:", error);
+        showError("Failed to analyze image. Please try again.");
+    } finally {
+        hideLoading();
     }
-</script>
+}
 
-{% endblock %}
+// ===== DISPLAY RESULTS =====
+function processResults(analysis) {
+    resultsDiv.style.display = "block";
+    plantName.textContent = analysis.plant || "Unknown";
+    diseaseName.textContent = analysis.disease || "Unknown";
+    confidence.textContent = analysis.confidence || "--";
+    description.textContent = analysis.description || "No description available";
+    recommendList.innerHTML = (analysis.recommendations || [])
+        .map(r => `<li>${r}</li>`)
+        .join("");
+}
+
+// ===== LOADING OVERLAY =====
+function showLoading() {
+    loadingOverlay.style.display = "flex";
+}
+function hideLoading() {
+    loadingOverlay.style.display = "none";
+}
+
+// ===== ERROR HANDLER =====
+function showError(message) {
+    resultsDiv.style.display = "block";
+    plantName.textContent = "Error";
+    diseaseName.textContent = message;
+    confidence.textContent = "--";
+    description.textContent = "";
+    recommendList.innerHTML = "";
+}
+
+// ===== PDF DOWNLOAD (Optional) =====
+function downloadPDF() {
+    if (resultsDiv.style.display === "none") return;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text("🌱 Crop Health Analysis Report", 20, 20);
+
+    doc.setFontSize(12);
+    doc.text(`Plant: ${plantName.textContent}`, 20, 40);
+    doc.text(`Disease: ${diseaseName.textContent}`, 20, 50);
+    doc.text(`Confidence: ${confidence.textContent}%`, 20, 60);
+    doc.text(`Description: ${description.textContent}`, 20, 70);
+
+    doc.text("Recommendations:", 20, 90);
+    [...recommendList.children].forEach((li, i) => {
+        doc.text(`- ${li.textContent}`, 25, 100 + i * 10);
+    });
+
+    doc.save("crop_report.pdf");
+}
+</script>
+{%endblock%}
