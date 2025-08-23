@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crop Dashboard</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body { background-color: #f8f9fa; }
+    .card { min-height: 360px; }
+    canvas { width: 100% !important; height: 280px !important; }
+  </style>
+</head>
+<body>
+
+<div class="container my-4">
+  <h2 class="text-center mb-4">📊 Crop Production & Yield Dashboard</h2>
+
+  <!-- Crop Selector -->
+  <form class="mb-4">
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        <label for="cropSelect" class="form-label">Select Crop:</label>
+        <select id="cropSelect" class="form-select" onchange="loadDashboardData(this.value)">
+          <option value="all">All Crops</option>
+          {% for crop in crops %}
+            <option value="{{ crop|lower }}">{{ crop }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </form>
+
+  {% if not data_loaded %}
+    <div class="alert alert-danger text-center">
+      ⚠️ Dataset not loaded. Dashboard unavailable.
+    </div>
+  {% else %}
+
+  <!-- Charts -->
+  <div class="row g-4">
+
+    <!-- Row 1 -->
+    <div class="col-lg-6">
+      <div class="card shadow-sm p-3 h-100">
+        <h5 class="text-center">Production Trend</h5>
+        <canvas id="productionChart"></canvas>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card shadow-sm p-3 h-100">
+        <h5 class="text-center">Yield Trend</h5>
+        <canvas id="yieldChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="col-lg-6">
+      <div class="card shadow-sm p-3 h-100">
+        <h5 class="text-center">Season Distribution</h5>
+        <canvas id="seasonChart"></canvas>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card shadow-sm p-3 h-100">
+        <h5 class="text-center">Top 10 States</h5>
+        <canvas id="statesChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Row 3 -->
+    <div class="col-lg-6">
+  <div class="card shadow-sm p-3 h-100">
+    <h5 class="text-center">Top 10 States by Avg Yield</h5>
+    <canvas id="avgYieldChart"></canvas>
+  </div>
+</div>
+
+    <div class="col-lg-6">
+      <div class="card shadow-sm p-3 h-100">
+        <h5 class="text-center">Yield vs Area (Scatter)</h5>
+        <canvas id="scatterChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Row 4 -->
+    <div class="col-12">
+      <div class="card shadow-sm p-3 h-100">
+        <h5 class="text-center" id="additionalTitle"></h5>
+        <canvas id="additionalChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+  {% endif %}
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+let charts = {};
+
+async function loadDashboardData(crop="all") {
+  const response = await fetch(`/api/dashboard_data?crop=${crop}`);
+  const data = await response.json();
+
+  // Standard charts
+  renderChart('productionChart', 'line', data.production_trend.years, data.production_trend.values, 'Production');
+  renderChart('yieldChart', 'line', data.yield_trend.years, data.yield_trend.values, 'Yield');
+  // Generate different colors automatically
+const colors = data.season_distribution.labels.map((_, i) =>
+  `hsl(${i * 60}, 70%, 60%)`
+);
+
+if (charts['seasonChart']) charts['seasonChart'].destroy();
+const seasonCtx = document.getElementById('seasonChart').getContext('2d');
+charts['seasonChart'] = new Chart(seasonCtx, {
+  type: 'pie',
+  data: {
+    labels: data.season_distribution.labels,
+    datasets: [{
+      label: 'Seasons',
+      data: data.season_distribution.values,
+      backgroundColor: colors,
+      borderColor: '#fff',
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'bottom' } }
+  }
+});
+
+  renderChart('statesChart', 'bar', data.top_states.labels, data.top_states.values, 'Production');
+  renderChart('avgYieldChart', 'bar', data.avg_yield_state.labels, data.avg_yield_state.values, 'Average Yield');
+
+
+  // Scatter chart
+  if (charts['scatterChart']) charts['scatterChart'].destroy();
+  const scatterCtx = document.getElementById('scatterChart').getContext('2d');
+  charts['scatterChart'] = new Chart(scatterCtx, {
+    type: 'scatter',
+    data: {
+      datasets: data.scatter_data.map(season => ({
+        label: season.name,
+        data: season.data.map(([x, y]) => ({x, y})),
+        pointRadius: 5
+      }))
+    },
+    options: {
+      scales: {
+        x: { title: { display: true, text: "Area" }},
+        y: { title: { display: true, text: "Yield" }}
+      }
+    }
+  });
+
+  // Additional chart
+  document.getElementById("additionalTitle").innerText = data.additional_chart.title;
+  renderChart('additionalChart', 'bar', data.additional_chart.labels, data.additional_chart.values, data.additional_chart.xlabel);
+}
+
+function renderChart(id, type, labels, values, label) {
+  if (charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {
+    type: type,
+    data: {
+      labels: labels,
+      datasets: [{
+        label: label,
+        data: values,
+        borderWidth: 2,
+        fill: type === 'line',
+        backgroundColor: type === 'bar' || type === 'pie'
+          ? 'rgba(54, 162, 235, 0.6)' : undefined,
+        borderColor: 'rgba(54, 162, 235, 1)'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: type !== 'line' } }
+    }
+  });
+}
+
+window.onload = () => loadDashboardData();
+</script>
+
+</body>
+</html>
