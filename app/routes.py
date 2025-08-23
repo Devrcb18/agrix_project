@@ -585,44 +585,52 @@ def api_dashboard_data():
 def crop_prediction():
     if request.method == 'POST':
         try:
-            crop_type = request.form.get('crop_type')
-            season = request.form.get('season')
-            area = float(request.form.get('area'))
-            soil_type = request.form.get('soil_type', 'loam')
+            # Get only the required parameters (no crop_type, area, soil_type)
             nitrogen = float(request.form.get('nitrogen', 0))
             phosphorus = float(request.form.get('phosphorus', 0))
             potassium = float(request.form.get('potassium', 0))
             rainfall = float(request.form.get('rainfall', 0))
             temperature = float(request.form.get('temperature', 25))
+            humidity = float(request.form.get('humidity', 70))
+            ph = float(request.form.get('ph', 6.5))
             
-            # Use ML model for prediction if available, otherwise use enhanced prediction
+            # Use ML model for prediction if available
             if ML_MODEL_AVAILABLE:
                 try:
                     prediction_data = get_ml_prediction(
-                        crop_type, season, area, soil_type, 
-                        nitrogen, phosphorus, potassium, rainfall, temperature
+                        nitrogen=nitrogen,
+                        phosphorus=phosphorus,
+                        potassium=potassium,
+                        rainfall=rainfall,
+                        temperature=temperature,
+                        humidity=humidity,
+                        ph=ph
                     )
                 except Exception as e:
                     print(f"ML model error: {str(e)}. Using fallback prediction.")
                     prediction_data = enhanced_crop_prediction(
-                        crop_type, season, area, soil_type, 
-                        nitrogen, phosphorus, potassium, rainfall, temperature
+                        nitrogen, phosphorus, potassium, rainfall, temperature, humidity, ph
                     )
             else:
                 # Enhanced prediction model with multiple factors
                 prediction_data = enhanced_crop_prediction(
-                    crop_type, season, area, soil_type, 
-                    nitrogen, phosphorus, potassium, rainfall, temperature
+                    nitrogen, phosphorus, potassium, rainfall, temperature, humidity, ph
                 )
             
             # Save prediction to database
             prediction = CropPrediction(
                 user_id=current_user.id,
-                crop_type=crop_type,
-                season=season,
-                area=area,
-                prediction_result=prediction_data['result'],
-                yield_estimation=prediction_data['yield_estimation']
+                nitrogen=nitrogen,
+                phosphorus=phosphorus,
+                potassium=potassium,
+                rainfall=rainfall,
+                temperature=temperature,
+                humidity=humidity,
+                ph=ph,
+                suitability_score=prediction_data['suitability_score'],
+                estimated_yield=prediction_data.get('estimated_yield', 0),
+                recommended_crop=prediction_data.get('recommended_crop', 'Unknown'),
+                recommendations='; '.join(prediction_data.get('recommendations', []))
             )
             
             db.session.add(prediction)
@@ -630,169 +638,92 @@ def crop_prediction():
             
             flash('Prediction generated successfully!', 'success')
             
-            return render_template('crop_prediction.html', 
-                                  crop=crop_type,
-                                  prediction_result=prediction_data['result'],
-                                  yield_estimation=prediction_data['yield_estimation'],
-                                  suitability_score=prediction_data.get('suitability_score', 75),
-                                  recommendations=prediction_data.get('recommendations', []),
+            return render_template('crop_prediction.html',
+                                  prediction=prediction_data,
                                   error=False)
         
         except ValueError as e:
             flash(f'Error in input values: {str(e)}', 'error')
             return render_template('crop_prediction.html', 
-                                 crop=f'Input Error: {str(e)}', 
                                  error=True)
         except Exception as e:
             flash(f'An error occurred: {str(e)}', 'error')
             return render_template('crop_prediction.html', 
-                                 crop=f'System Error: {str(e)}', 
                                  error=True)
     
-    return render_template('crop_prediction_form.html')
-
-@main_bp.route('/predict_crop', methods=['POST'])
-def predict_crop():
-    if not model_loaded:
-        return render_template('result.html', crop="⚠️ Model not loaded", error=True)
-
-    try:
-        # Input features
-        N = float(request.form['N'])
-        P = float(request.form['P'])
-        K = float(request.form['K'])
-        temperature = float(request.form['temperature'])
-        humidity = float(request.form['humidity'])
-        ph = float(request.form['ph'])
-        rainfall = float(request.form['rainfall'])
-
-        # Validation
-        if not (0 <= humidity <= 100):
-            raise ValueError("Humidity must be between 0 and 100")
-        if not (0 <= ph <= 14):
-            raise ValueError("pH must be between 0 and 14")
-        if any(val < 0 for val in [N, P, K, temperature, rainfall]):
-            raise ValueError("Values cannot be negative")
-
-        # Prepare + Scale
-        features = np.array([[N, P, K, temperature, humidity, ph, rainfall]])
-        scaled = scaler.transform(features)
-
-        # Prediction
-        prediction = model.predict(scaled)[0]
-        crop_name = crop_labels.get(prediction, "Unknown")
-
-        return render_template('result.html', crop=crop_name, error=False)
-
-    except ValueError as e:
-        return render_template('result.html', crop=f"Validation Error: {e}", error=True)
-    except Exception as e:
-        return render_template('result.html', crop=f"Prediction Error: {e}", error=True)
-
+    return render_template('crop_prediction.html')
 @main_bp.route('/yield-estimation', methods=['GET', 'POST'])
 @login_required
 def yield_estimation():
     if request.method == 'POST':
-        # Get all form inputs
-        crop_type = request.form.get('crop_type')
-        area = float(request.form.get('area'))
-        soil_type = request.form.get('soil_type')
-        state = request.form.get('state')
-        irrigation = request.form.get('irrigation')
-        seed_quality = request.form.get('seed_quality')
-        fertilizer_usage = request.form.get('fertilizer_usage')
-        pesticide_usage = request.form.get('pesticide_usage')
-        technology_level = request.form.get('technology_level')
-        
-        # Map fertilizer usage to nutrient levels (N, P, K)
-        fertilizer_mapping = {
-            'high': {'nitrogen': 120, 'phosphorus': 60, 'potassium': 60},
-            'moderate': {'nitrogen': 80, 'phosphorus': 40, 'potassium': 40},
-            'low': {'nitrogen': 40, 'phosphorus': 20, 'potassium': 20},
-            'organic': {'nitrogen': 60, 'phosphorus': 30, 'potassium': 30}
-        }
-        
-        nutrients = fertilizer_mapping.get(fertilizer_usage, fertilizer_mapping['moderate'])
-        nitrogen = nutrients['nitrogen']
-        phosphorus = nutrients['phosphorus']
-        potassium = nutrients['potassium']
-        
-        # Estimate rainfall and temperature based on state
-        state_data = {
-            'Andhra Pradesh': {'rainfall': 1000, 'temperature': 28},
-            'Bihar': {'rainfall': 1200, 'temperature': 26},
-            'Gujarat': {'rainfall': 800, 'temperature': 29},
-            'Haryana': {'rainfall': 600, 'temperature': 25},
-            'Karnataka': {'rainfall': 900, 'temperature': 24},
-            'Madhya Pradesh': {'rainfall': 1100, 'temperature': 26},
-            'Maharashtra': {'rainfall': 950, 'temperature': 27},
-            'Punjab': {'rainfall': 500, 'temperature': 24},
-            'Tamil Nadu': {'rainfall': 1100, 'temperature': 28},
-            'Uttar Pradesh': {'rainfall': 1000, 'temperature': 25},
-            'West Bengal': {'rainfall': 1300, 'temperature': 27}
-        }
-        
-        default_data = {'rainfall': 900, 'temperature': 26}
-        location_data = state_data.get(state, default_data)
-        
-        # Adjust rainfall based on irrigation method
-        irrigation_factor = {
-            'drip': 0.7, 'sprinkler': 0.8, 'flood': 1.0, 'rainfed': 1.2
-        }
-        
-        rainfall = location_data['rainfall'] * irrigation_factor.get(irrigation, 1.0)
-        temperature = location_data['temperature']
-        season = 'kharif'  # Default season
-        
-        # Use enhanced prediction model
-        prediction_data = enhanced_crop_prediction(
-            crop_type, season, area, soil_type, 
-            nitrogen, phosphorus, potassium, rainfall, temperature
-        )
-        
-        # Save prediction to database
-        prediction = CropPrediction(
-            user_id=current_user.id,
-            crop_type=crop_type,
-            season=season,
-            area=area,
-            prediction_result=prediction_data['result'],
-            yield_estimation=prediction_data['yield_estimation']
-        )
-        
-        db.session.add(prediction)
-        db.session.commit()
-        
-        flash('Yield estimation generated successfully!', 'success')
-        
-        # Parse yield estimation for display
-        yield_estimation_text = prediction_data['yield_estimation']
         try:
-            parts = yield_estimation_text.split()
-            total_yield = float(parts[2])
-            yield_per_hectare = float(parts[7])
-        except:
-            total_yield = 0
-            yield_per_hectare = 0
+            # Get only the required parameters (no crop_type, area, soil_type)
+            nitrogen = float(request.form.get('nitrogen', 0))
+            phosphorus = float(request.form.get('phosphorus', 0))
+            potassium = float(request.form.get('potassium', 0))
+            rainfall = float(request.form.get('rainfall', 0))
+            temperature = float(request.form.get('temperature', 25))
+            humidity = float(request.form.get('humidity', 70))
+            ph = float(request.form.get('ph', 6.5))
+            
+            # Use ML model for prediction if available
+            if ML_MODEL_AVAILABLE:
+                try:
+                    prediction_data = get_ml_prediction(
+                        nitrogen=nitrogen,
+                        phosphorus=phosphorus,
+                        potassium=potassium,
+                        rainfall=rainfall,
+                        temperature=temperature,
+                        humidity=humidity,
+                        ph=ph
+                    )
+                except Exception as e:
+                    print(f"ML model error: {str(e)}. Using fallback prediction.")
+                    prediction_data = enhanced_crop_prediction(
+                        nitrogen, phosphorus, potassium, rainfall, temperature, humidity, ph
+                    )
+            else:
+                # Enhanced prediction model with multiple factors
+                prediction_data = enhanced_crop_prediction(
+                    nitrogen, phosphorus, potassium, rainfall, temperature, humidity, ph
+                )
+            
+            # Save prediction to database
+            prediction = CropPrediction(
+                user_id=current_user.id,
+                nitrogen=nitrogen,
+                phosphorus=phosphorus,
+                potassium=potassium,
+                rainfall=rainfall,
+                temperature=temperature,
+                humidity=humidity,
+                ph=ph,
+                suitability_score=prediction_data['suitability_score'],
+                estimated_yield=prediction_data.get('estimated_yield', 0),
+                recommended_crop=prediction_data.get('recommended_crop', 'Unknown'),
+                recommendations='; '.join(prediction_data.get('recommendations', []))
+            )
+            
+            db.session.add(prediction)
+            db.session.commit()
+            
+            flash('Yield estimation generated successfully!', 'success')
+            
+            return render_template('crop_prediction.html',
+                                  prediction=prediction_data,
+                                  error=False)
         
-        # Create yield result for template
-        yield_result = {
-            'yield_per_hectare': round(yield_per_hectare, 2),
-            'total_yield': round(total_yield, 2),
-            'confidence': prediction_data.get('suitability_score', 75),
-            'market_price': 1500,  # Placeholder value
-            'estimated_value': round(total_yield * 1500),
-            'suggestions': prediction_data.get('recommendations', [])
-        }
-        
-        return render_template('yield_estimation.html',
-                              crop_type=crop_type,
-                              area=area,
-                              soil_type=soil_type,
-                              irrigation=irrigation,
-                              yield_result=yield_result)
+        except ValueError as e:
+            flash(f'Error in input values: {str(e)}', 'error')
+            return render_template('crop_prediction.html',
+                                 error=True)
+        except Exception as e:
+            flash(f'An error occurred: {str(e)}', 'error')
+            return render_template('crop_prediction.html',
+                                 error=True)
     
-    return render_template('yield_estimation.html')
+    return render_template('crop_prediction.html')
 
 # Prediction history routes
 @main_bp.route('/predictions')
@@ -802,28 +733,19 @@ def predictions():
     
     # Prepare data for charts
     crop_counts = {}
-    season_counts = {}
     
     for prediction in user_predictions:
-        crop = prediction.crop_type
-        season = prediction.season
+        crop = prediction.recommended_crop
         crop_counts[crop] = crop_counts.get(crop, 0) + 1
-        season_counts[season] = season_counts.get(season, 0) + 1
     
     crop_data = {
         'labels': list(crop_counts.keys()),
         'values': list(crop_counts.values())
     }
     
-    season_data = {
-        'labels': list(season_counts.keys()),
-        'values': list(season_counts.values())
-    }
-    
     return render_template('predictions.html',
                          predictions=user_predictions,
-                         crop_data=crop_data,
-                         season_data=season_data)
+                         crop_data=crop_data)
 
 @main_bp.route('/prediction/<int:prediction_id>')
 @login_required

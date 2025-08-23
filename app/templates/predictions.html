@@ -16,10 +16,9 @@
                             <thead>
                                 <tr>
                                     <th>Date</th>
-                                    <th>Crop</th>
-                                    <th>Season</th>
-                                    <th>Area</th>
-                                    <th>Prediction Result</th>
+                                    <th>Recommended Crop</th>
+                                    <th>Suitability Score</th>
+                                    <th>Estimated Yield</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -27,10 +26,9 @@
                                 {% for prediction in predictions %}
                                 <tr>
                                     <td>{{ prediction.created_at.strftime('%Y-%m-%d') }}</td>
-                                    <td>{{ prediction.crop_type }}</td>
-                                    <td>{{ prediction.season }}</td>
-                                    <td>{{ prediction.area }} ha</td>
-                                    <td>{{ prediction.prediction_result }}</td>
+                                    <td>{{ prediction.recommended_crop }}</td>
+                                    <td>{{ prediction.suitability_score }}%</td>
+                                    <td>{{ prediction.estimated_yield }} tons/hectare</td>
                                     <td>
                                         <a href="{{ url_for('main.prediction_detail', prediction_id=prediction.id) }}" class="btn btn-sm btn-outline-primary">View Details</a>
                                     </td>
@@ -51,23 +49,13 @@
 
 {% if predictions and predictions|length > 0 %}
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-12">
         <div class="card">
             <div class="card-header bg-info text-white">
                 <h5 class="card-title mb-0">Crop Distribution</h5>
             </div>
             <div class="card-body">
                 <canvas id="cropDistributionChart" height="300"></canvas>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header bg-success text-white">
-                <h5 class="card-title mb-0">Season Analysis</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="seasonDistributionChart" height="300"></canvas>
             </div>
         </div>
     </div>
@@ -81,14 +69,16 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Crop distribution chart
         const cropCtx = document.getElementById('cropDistributionChart').getContext('2d');
-        const cropData = {{ crop_data|safe if crop_data else '{"labels":[], "values":[]}' }};
+        // Convert the Jinja2 data to JSON
+        const cropDataJson = '{{ crop_data|tojson|safe if crop_data else "{}" }}';
+        const cropData = JSON.parse(cropDataJson);
         
         new Chart(cropCtx, {
             type: 'pie',
             data: {
-                labels: cropData.labels,
+                labels: cropData.labels || [],
                 datasets: [{
-                    data: cropData.values,
+                    data: cropData.values || [],
                     backgroundColor: [
                         'rgba(255, 99, 132, 0.6)',
                         'rgba(54, 162, 235, 0.6)',
@@ -118,46 +108,6 @@
                     },
                     legend: {
                         position: 'right'
-                    }
-                },
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
-        
-        // Season distribution chart
-        const seasonCtx = document.getElementById('seasonDistributionChart').getContext('2d');
-        const seasonData = {{ season_data|safe if season_data else '{"labels":[], "values":[]}' }};
-        
-        new Chart(seasonCtx, {
-            type: 'bar',
-            data: {
-                labels: seasonData.labels,
-                datasets: [{
-                    label: 'Number of Predictions',
-                    data: seasonData.values,
-                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Count'
-                        }
-                    }
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Predictions by Season'
-                    },
-                    legend: {
-                        display: false
                     }
                 },
                 responsive: true,

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}AgriX - Prediction Details{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Prediction Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><strong>Date:</strong> {{ prediction.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</h6>
+                        <h6><strong>Recommended Crop:</strong> {{ prediction.recommended_crop }}</h6>
+                        <h6><strong>Suitability Score:</strong> {{ prediction.suitability_score }}%</h6>
+                        <h6><strong>Estimated Yield:</strong> {{ prediction.estimated_yield }} tons/hectare</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><strong>Environmental Conditions:</strong></h6>
+                        <ul>
+                            <li><strong>Nitrogen:</strong> {{ prediction.nitrogen }} kg/ha</li>
+                            <li><strong>Phosphorus:</strong> {{ prediction.phosphorus }} kg/ha</li>
+                            <li><strong>Potassium:</strong> {{ prediction.potassium }} kg/ha</li>
+                            <li><strong>Temperature:</strong> {{ prediction.temperature }}°C</li>
+                            <li><strong>Humidity:</strong> {{ prediction.humidity }}%</li>
+                            <li><strong>Rainfall:</strong> {{ prediction.rainfall }} mm</li>
+                            <li><strong>pH:</strong> {{ prediction.ph }}</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <h6><strong>Recommendations:</strong></h6>
+                        <p>{{ prediction.recommendations }}</p>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('main.predictions') }}" class="btn btn-secondary">Back to Predictions</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

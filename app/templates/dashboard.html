@@ -183,10 +183,10 @@
         {% for prediction in predictions[:3] %}
             <li class="list-group-item">
                 <div class="d-flex justify-content-between">
-                    <span>{{ prediction.crop_type }} ({{ prediction.season }})</span>
+                    <span>{{ prediction.recommended_crop }}</span>
                     <small class="text-muted">{{ prediction.created_at.strftime('%Y-%m-%d') }}</small>
                 </div>
-                <small>{{ prediction.prediction_result }}</small>
+                <small>Suitability: {{ prediction.suitability_score }}%</small>
             </li>
         {% endfor %}
     </ul>

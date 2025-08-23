@@ -17,45 +17,24 @@
             <div class="card-body">
                 <p class="lead">Estimate your crop yield based on various factors</p>
                 
-                <form method="POST" action="{{ url_for('main.yield_estimation') }}">
+                <form method="POST" action="{{ url_for('main.crop_prediction') }}">
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="crop_type" class="form-label">Crop Type</label>
-                                <select class="form-select" id="crop_type" name="crop_type" required>
-                                    <option value="" selected disabled>Select a crop</option>
-                                    <option value="rice">Rice</option>
-                                    <option value="wheat">Wheat</option>
-                                    <option value="maize">Maize/Corn</option>
-                                    <option value="cotton">Cotton</option>
-                                    <option value="sugarcane">Sugarcane</option>
-                                    <option value="potato">Potato</option>
-                                </select>
+                                <label for="nitrogen" class="form-label">Nitrogen (kg/ha)</label>
+                                <input type="number" class="form-control" id="nitrogen" name="nitrogen" min="0" max="500" value="80" required>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="area" class="form-label">Area (Hectares)</label>
-                                <input type="number" class="form-control" id="area" name="area" step="0.1" min="0.1" required>
+                                <label for="phosphorus" class="form-label">Phosphorus (kg/ha)</label>
+                                <input type="number" class="form-control" id="phosphorus" name="phosphorus" min="0" max="200" value="40" required>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="state" class="form-label">State</label>
-                                <select class="form-select" id="state" name="state" required>
-                                    <option value="" selected disabled>Select your state</option>
-                                    <option value="Andhra Pradesh">Andhra Pradesh</option>
-                                    <option value="Bihar">Bihar</option>
-                                    <option value="Gujarat">Gujarat</option>
-                                    <option value="Haryana">Haryana</option>
-                                    <option value="Karnataka">Karnataka</option>
-                                    <option value="Madhya Pradesh">Madhya Pradesh</option>
-                                    <option value="Maharashtra">Maharashtra</option>
-                                    <option value="Punjab">Punjab</option>
-                                    <option value="Tamil Nadu">Tamil Nadu</option>
-                                    <option value="Uttar Pradesh">Uttar Pradesh</option>
-                                    <option value="West Bengal">West Bengal</option>
-                                </select>
+                                <label for="potassium" class="form-label">Potassium (kg/ha)</label>
+                                <input type="number" class="form-control" id="potassium" name="potassium" min="0" max="200" value="40" required>
                             </div>
                         </div>
                     </div>
@@ -63,78 +42,29 @@
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="irrigation" class="form-label">Irrigation Method</label>
-                                <select class="form-select" id="irrigation" name="irrigation" required>
-                                    <option value="" selected disabled>Select method</option>
-                                    <option value="drip">Drip Irrigation</option>
-                                    <option value="sprinkler">Sprinkler Irrigation</option>
-                                    <option value="flood">Flood Irrigation</option>
-                                    <option value="rainfed">Rainfed (No Irrigation)</option>
-                                </select>
+                                <label for="rainfall" class="form-label">Expected Rainfall (mm)</label>
+                                <input type="number" class="form-control" id="rainfall" name="rainfall" min="0" max="3000" value="600" required>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="soil_type" class="form-label">Soil Type</label>
-                                <select class="form-select" id="soil_type" name="soil_type">
-                                    <option value="" selected disabled>Select soil type</option>
-                                    <option value="clay">Clay</option>
-                                    <option value="loam">Loam</option>
-                                    <option value="sandy">Sandy</option>
-                                    <option value="silt">Silt</option>
-                                    <option value="black">Black</option>
-                                    <option value="red">Red</option>
-                                </select>
+                                <label for="temperature" class="form-label">Avg Temperature (°C)</label>
+                                <input type="number" class="form-control" id="temperature" name="temperature" min="0" max="50" step="0.1" value="25" required>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="seed_quality" class="form-label">Seed Quality</label>
-                                <select class="form-select" id="seed_quality" name="seed_quality" required>
-                                    <option value="" selected disabled>Select quality</option>
-                                    <option value="high">High Quality (Certified)</option>
-                                    <option value="medium">Medium Quality</option>
-                                    <option value="low">Low Quality</option>
-                                </select>
+                                <label for="humidity" class="form-label">Humidity (%)</label>
+                                <input type="number" class="form-control" id="humidity" name="humidity" min="0" max="100" step="1" value="70" required>
                             </div>
                         </div>
                     </div>
-
+                    
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <div class="mb-3">
-                                <label for="fertilizer_usage" class="form-label">Fertilizer Usage</label>
-                                <select class="form-select" id="fertilizer_usage" name="fertilizer_usage" required>
-                                    <option value="" selected disabled>Select usage level</option>
-                                    <option value="high">High Usage</option>
-                                    <option value="moderate">Moderate Usage</option>
-                                    <option value="low">Low Usage</option>
-                                    <option value="organic">Organic Fertilizers Only</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="pesticide_usage" class="form-label">Pesticide Usage</label>
-                                <select class="form-select" id="pesticide_usage" name="pesticide_usage" required>
-                                    <option value="" selected disabled>Select usage level</option>
-                                    <option value="high">High Usage</option>
-                                    <option value="moderate">Moderate Usage</option>
-                                    <option value="low">Low Usage</option>
-                                    <option value="organic">Organic Pesticides Only</option>
-                                    <option value="none">No Pesticides</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="technology_level" class="form-label">Technology Level</label>
-                                <select class="form-select" id="technology_level" name="technology_level" required>
-                                    <option value="" selected disabled>Select level</option>
-                                    <option value="high">High-Tech (Modern Equipment)</option>
-                                    <option value="moderate">Moderate Technology</option>
-                                    <option value="low">Traditional Farming</option>
-                                </select>
+                                <label for="ph" class="form-label">Soil pH</label>
+                                <input type="number" class="form-control" id="ph" name="ph" min="0" max="14" step="0.1" value="6.5" required>
                             </div>
                         </div>
                     </div>
@@ -193,52 +123,14 @@
     </div>
 </div>
 
-{% if yield_history %}
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <h5 class="card-title mb-0">Your Yield History</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Crop</th>
-                                <th>Area (ha)</th>
-                                <th>Yield/ha</th>
-                                <th>Total Yield</th>
-                                <th>Est. Value</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for record in yield_history %}
-                            <tr>
-                                <td>{{ record.created_at.strftime('%Y-%m-%d') }}</td>
-                                <td>{{ record.crop_type }}</td>
-                                <td>{{ record.area }}</td>
-                                <td>{{ record.yield_per_hectare }} q/ha</td>
-                                <td>{{ record.total_yield }} q</td>
-                                <td>₹{{ record.estimated_value }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
 {% if yield_result and yield_result.chart_data %}
 <script>
     const yieldCtx = document.getElementById('yieldComparisonChart').getContext('2d');
-    const chartData = {{ yield_result.chart_data|safe }};
+    const chartDataJson = '{{ yield_result.chart_data|tojson|safe if yield_result.chart_data else "{}" }}';
+    const chartData = JSON.parse(chartDataJson);
     
     const yieldComparisonChart = new Chart(yieldCtx, {
         type: 'bar',

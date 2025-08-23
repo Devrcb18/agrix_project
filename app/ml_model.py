@@ -1,13 +1,11 @@
-
-
 import numpy as np
 import pandas as pd
 import pickle
 import os
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.metrics import accuracy_score, mean_squared_error
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_squared_error, r2_score
 import joblib
 from datetime import datetime
 import logging
@@ -17,155 +15,262 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class CropPredictionModel:
-    def __init__(self, model_dir='app/ml_models'):
+    def __init__(self, model_dir='app/ml_models', data_path='Crop_recommendation (2).csv'):
         self.model_dir = model_dir
+        self.data_path = data_path
         self.suitability_model = None
         self.yield_model = None
-        self.label_encoders = {}
         self.scaler = None
         self.is_trained = False
+        self.crop_optimal_ranges = {}
         
         os.makedirs(model_dir, exist_ok=True)
         
         # Try to load existing models
         self.load_models()
     
-    def prepare_training_data(self):
+    def load_and_preprocess_data(self):
         """
-        Prepare synthetic training data for the ML model
-        In a real implementation, this would load from a database or CSV files
+        Load and preprocess the actual crop recommendation dataset
         """
-        
-        # Synthetic training data based on agricultural research
-        training_data = []
-        
-        # Define crop characteristics
-        crop_data = {
-            'rice': {
-                'temp_range': (20, 35), 'rainfall_range': (1000, 2000),
-                'nitrogen': (80, 120), 'phosphorus': (40, 60), 'potassium': (40, 60),
-                'base_yield': 4.0, 'seasons': ['kharif'], 'soils': ['clay', 'loam']
-            },
-            'wheat': {
-                'temp_range': (15, 25), 'rainfall_range': (400, 1100),
-                'nitrogen': (100, 120), 'phosphorus': (50, 60), 'potassium': (40, 50),
-                'base_yield': 3.5, 'seasons': ['rabi'], 'soils': ['loam', 'clay', 'silt']
-            },
-            'maize': {
-                'temp_range': (21, 30), 'rainfall_range': (500, 1000),
-                'nitrogen': (120, 150), 'phosphorus': (60, 80), 'potassium': (60, 80),
-                'base_yield': 5.2, 'seasons': ['kharif', 'rabi'], 'soils': ['loam', 'sandy']
-            },
-            'cotton': {
-                'temp_range': (21, 30), 'rainfall_range': (500, 1000),
-                'nitrogen': (100, 150), 'phosphorus': (50, 80), 'potassium': (50, 80),
-                'base_yield': 1.8, 'seasons': ['kharif'], 'soils': ['black', 'loam']
-            },
-            'sugarcane': {
-                'temp_range': (26, 32), 'rainfall_range': (1000, 1500),
-                'nitrogen': (200, 300), 'phosphorus': (80, 120), 'potassium': (100, 150),
-                'base_yield': 70.0, 'seasons': ['perennial'], 'soils': ['loam', 'clay']
+        try:
+            # Load the dataset
+            df = pd.read_csv(self.data_path)
+            logger.info(f"Dataset loaded successfully. Shape: {df.shape}")
+            
+            # Display basic info about the dataset
+            logger.info(f"Columns: {df.columns.tolist()}")
+            logger.info(f"Missing values:\n{df.isnull().sum()}")
+            
+            # Check the target variable (assuming it's 'label' for crop type)
+            if 'label' in df.columns:
+                logger.info(f"Target variable 'label' has {df['label'].nunique()} unique crops")
+            
+            # Rename columns to match our expected feature names
+            column_mapping = {
+                'N': 'nitrogen',
+                'P': 'phosphorus', 
+                'K': 'potassium',
+                'temperature': 'temperature',
+                'humidity': 'humidity',
+                'ph': 'ph',
+                'rainfall': 'rainfall',
+                'label': 'crop_type'
             }
+            
+            df = df.rename(columns=column_mapping)
+            
+            # Calculate optimal ranges for each crop
+            self.calculate_crop_optimal_ranges(df)
+            
+            # Calculate suitability score for each sample
+            df['suitability_score'] = df.apply(
+                lambda row: self.calculate_suitability_score(
+                    row['crop_type'],
+                    row['nitrogen'],
+                    row['phosphorus'],
+                    row['potassium'],
+                    row['temperature'],
+                    row['humidity'],
+                    row['ph'],
+                    row['rainfall']
+                ), 
+                axis=1
+            )
+            
+            # Calculate estimated yield based on suitability
+            df['estimated_yield'] = df.apply(
+                lambda row: self.calculate_estimated_yield(
+                    row['crop_type'],
+                    row['suitability_score']
+                ), 
+                axis=1
+            )
+            
+            # Select only the numerical features we need
+            final_columns = [
+                'nitrogen', 'phosphorus', 'potassium', 'temperature', 
+                'humidity', 'ph', 'rainfall', 'suitability_score', 'estimated_yield'
+            ]
+            
+            df_processed = df[final_columns]
+            
+            logger.info(f"Processed dataset shape: {df_processed.shape}")
+            return df_processed
+            
+        except Exception as e:
+            logger.error(f"Error loading dataset: {str(e)}")
+            # Fall back to synthetic data if real dataset is unavailable
+            logger.info("Falling back to synthetic data...")
+            return self.prepare_training_data()
+    
+    def calculate_crop_optimal_ranges(self, df):
+        """
+        Calculate optimal ranges for each crop based on dataset statistics
+        """
+        for crop in df['crop_type'].unique():
+            crop_data = df[df['crop_type'] == crop]
+            
+            self.crop_optimal_ranges[crop] = {
+                'nitrogen': (crop_data['nitrogen'].quantile(0.25), crop_data['nitrogen'].quantile(0.75)),
+                'phosphorus': (crop_data['phosphorus'].quantile(0.25), crop_data['phosphorus'].quantile(0.75)),
+                'potassium': (crop_data['potassium'].quantile(0.25), crop_data['potassium'].quantile(0.75)),
+                'temperature': (crop_data['temperature'].quantile(0.25), crop_data['temperature'].quantile(0.75)),
+                'humidity': (crop_data['humidity'].quantile(0.25), crop_data['humidity'].quantile(0.75)),
+                'ph': (crop_data['ph'].quantile(0.25), crop_data['ph'].quantile(0.75)),
+                'rainfall': (crop_data['rainfall'].quantile(0.25), crop_data['rainfall'].quantile(0.75))
+            }
+    
+    def calculate_suitability_score(self, crop_type, nitrogen, phosphorus, potassium, 
+                                  temperature, humidity, ph, rainfall):
+        """
+        Calculate suitability score based on how close values are to crop's optimal ranges
+        """
+        if crop_type not in self.crop_optimal_ranges:
+            return 70  # Default score for unknown crops
+        
+        optimal_ranges = self.crop_optimal_ranges[crop_type]
+        total_score = 0
+        factors_considered = 0
+        
+        # Check each factor
+        factors = {
+            'nitrogen': nitrogen,
+            'phosphorus': phosphorus,
+            'potassium': potassium,
+            'temperature': temperature,
+            'humidity': humidity,
+            'ph': ph,
+            'rainfall': rainfall
         }
         
-        # Generate synthetic training samples
-        np.random.seed(42)  # For reproducibility
+        for factor, value in factors.items():
+            if factor in optimal_ranges:
+                min_val, max_val = optimal_ranges[factor]
+                
+                if min_val <= value <= max_val:
+                    total_score += 100
+                else:
+                    # Calculate deviation penalty
+                    if value < min_val:
+                        deviation = (min_val - value) / min_val
+                    else:
+                        deviation = (value - max_val) / max_val
+                    total_score += max(0, 100 - (deviation * 100))
+                
+                factors_considered += 1
         
-        for crop_name, crop_info in crop_data.items():
-            for _ in range(200):  # Generate 200 samples per crop
-                # Random variations around optimal conditions
-                temp_var = np.random.normal(0, 3)
-                rain_var = np.random.normal(0, 100)
-                
-                temperature = np.random.uniform(*crop_info['temp_range']) + temp_var
-                rainfall = np.random.uniform(*crop_info['rainfall_range']) + rain_var
-                
-                # Nutrient variations
-                nitrogen = np.random.uniform(*crop_info['nitrogen']) + np.random.normal(0, 10)
-                phosphorus = np.random.uniform(*crop_info['phosphorus']) + np.random.normal(0, 5)
-                potassium = np.random.uniform(*crop_info['potassium']) + np.random.normal(0, 5)
-                
-                # Random area
-                area = np.random.uniform(0.5, 10.0)
-                
-                # Random season and soil from preferred options
-                season = np.random.choice(crop_info['seasons'])
-                soil_type = np.random.choice(crop_info['soils'])
-                
-                # Calculate suitability based on conditions
-                temp_score = self.calculate_condition_score(
-                    temperature, crop_info['temp_range']
-                )
-                rain_score = self.calculate_condition_score(
-                    rainfall, crop_info['rainfall_range']
-                )
-                
-                # Overall suitability (0-100)
-                suitability = (temp_score + rain_score) / 2
-                suitability += np.random.normal(0, 5)  # Add some noise
-                suitability = np.clip(suitability, 0, 100)
-                
-                # Calculate yield based on suitability and conditions
-                yield_modifier = suitability / 100
-                base_yield = crop_info['base_yield']
-                estimated_yield = base_yield * yield_modifier * area
-                estimated_yield += np.random.normal(0, estimated_yield * 0.1)  # 10% noise
-                estimated_yield = max(0, estimated_yield)
-                
-                training_data.append({
-                    'crop_type': crop_name,
-                    'season': season,
-                    'area': area,
-                    'soil_type': soil_type,
-                    'nitrogen': max(0, nitrogen),
-                    'phosphorus': max(0, phosphorus),
-                    'potassium': max(0, potassium),
-                    'rainfall': max(0, rainfall),
-                    'temperature': temperature,
-                    'suitability_score': suitability,
-                    'estimated_yield': estimated_yield
-                })
-        
-        return pd.DataFrame(training_data)
+        return total_score / factors_considered if factors_considered > 0 else 70
     
-    def calculate_condition_score(self, value, optimal_range):
-        """Calculate score based on how close value is to optimal range"""
-        min_val, max_val = optimal_range
+    def calculate_estimated_yield(self, crop_type, suitability_score):
+        """
+        Calculate estimated yield based on crop type and suitability score
+        """
+        # Base yields for different crops (hypothetical values in tons/hectare)
+        base_yields = {
+            'rice': 4.0, 'maize': 5.2, 'chickpea': 2.5, 'kidneybeans': 2.0,
+            'pigeonpeas': 2.2, 'mothbeans': 1.8, 'mungbean': 2.1, 'blackgram': 2.0,
+            'lentil': 1.8, 'pomegranate': 8.0, 'banana': 12.0, 'mango': 6.0,
+            'grapes': 5.0, 'watermelon': 10.0, 'muskmelon': 8.0, 'apple': 6.0,
+            'orange': 7.0, 'papaya': 15.0, 'coconut': 20.0, 'cotton': 1.8,
+            'jute': 2.5, 'coffee': 1.5
+        }
         
-        if min_val <= value <= max_val:
-            return 100
-        elif value < min_val:
-            deviation = (min_val - value) / min_val
-            return max(0, 100 - (deviation * 100))
-        else:
-            deviation = (value - max_val) / max_val
-            return max(0, 100 - (deviation * 100))
+        base_yield = base_yields.get(crop_type, 3.0)
+        return base_yield * (suitability_score / 100) * np.random.uniform(0.9, 1.1)
+    
+    def prepare_training_data(self):
+        """
+        Fallback synthetic training data if real dataset is unavailable
+        """
+        # Simplified synthetic data without crop, area, soil type
+        np.random.seed(42)
+        n_samples = 1000
+        
+        data = {
+            'nitrogen': np.random.uniform(0, 200, n_samples),
+            'phosphorus': np.random.uniform(0, 150, n_samples),
+            'potassium': np.random.uniform(0, 200, n_samples),
+            'temperature': np.random.uniform(10, 40, n_samples),
+            'humidity': np.random.uniform(20, 90, n_samples),
+            'ph': np.random.uniform(4.0, 9.0, n_samples),
+            'rainfall': np.random.uniform(200, 2000, n_samples)
+        }
+        
+        df = pd.DataFrame(data)
+        
+        # Calculate suitability score (simplified)
+        df['suitability_score'] = df.apply(
+            lambda row: self.calculate_general_suitability(
+                row['nitrogen'], row['phosphorus'], row['potassium'],
+                row['temperature'], row['humidity'], row['ph'], row['rainfall']
+            ), 
+            axis=1
+        )
+        
+        # Calculate estimated yield
+        df['estimated_yield'] = df['suitability_score'] / 100 * np.random.uniform(2.0, 8.0, n_samples)
+        
+        return df
+    
+    def calculate_general_suitability(self, nitrogen, phosphorus, potassium, 
+                                    temperature, humidity, ph, rainfall):
+        """
+        General suitability calculation for synthetic data
+        """
+        # Define general optimal ranges
+        optimal_ranges = {
+            'nitrogen': (50, 120),
+            'phosphorus': (30, 80),
+            'potassium': (40, 100),
+            'temperature': (20, 30),
+            'humidity': (60, 80),
+            'ph': (6.0, 7.0),
+            'rainfall': (500, 1200)
+        }
+        
+        total_score = 0
+        factors = {
+            'nitrogen': nitrogen,
+            'phosphorus': phosphorus,
+            'potassium': potassium,
+            'temperature': temperature,
+            'humidity': humidity,
+            'ph': ph,
+            'rainfall': rainfall
+        }
+        
+        for factor, value in factors.items():
+            min_val, max_val = optimal_ranges[factor]
+            
+            if min_val <= value <= max_val:
+                total_score += 100
+            else:
+                if value < min_val:
+                    deviation = (min_val - value) / min_val
+                else:
+                    deviation = (value - max_val) / max_val
+                total_score += max(0, 100 - (deviation * 100))
+        
+        return total_score / len(factors)
     
     def train_models(self):
-        """Train the ML models"""
-        logger.info("Preparing training data...")
-        df = self.prepare_training_data()
+        """Train the ML models using the actual dataset"""
+        logger.info("Loading and preparing training data...")
+        df = self.load_and_preprocess_data()
         
-        # Prepare features
-        categorical_features = ['crop_type', 'season', 'soil_type']
-        numerical_features = ['area', 'nitrogen', 'phosphorus', 'potassium', 'rainfall', 'temperature']
-        
-        # Encode categorical variables
-        df_encoded = df.copy()
-        for feature in categorical_features:
-            self.label_encoders[feature] = LabelEncoder()
-            df_encoded[feature] = self.label_encoders[feature].fit_transform(df[feature])
+        # Prepare features (only numerical features now)
+        numerical_features = ['nitrogen', 'phosphorus', 'potassium', 
+                             'temperature', 'humidity', 'ph', 'rainfall']
         
         # Prepare feature matrix
-        feature_columns = categorical_features + numerical_features
-        X = df_encoded[feature_columns]
+        X = df[numerical_features]
         
         # Scale numerical features
         self.scaler = StandardScaler()
-        X_scaled = X.copy()
-        X_scaled[numerical_features] = self.scaler.fit_transform(X[numerical_features])
+        X_scaled = self.scaler.fit_transform(X)
         
-        # Train suitability model (classification/regression)
+        # Train suitability model
         logger.info("Training suitability model...")
         y_suitability = df['suitability_score']
         X_train, X_test, y_train, y_test = train_test_split(
@@ -180,7 +285,8 @@ class CropPredictionModel:
         # Evaluate suitability model
         y_pred = self.suitability_model.predict(X_test)
         mse = mean_squared_error(y_test, y_pred)
-        logger.info(f"Suitability model MSE: {mse:.2f}")
+        r2 = r2_score(y_test, y_pred)
+        logger.info(f"Suitability model MSE: {mse:.2f}, R²: {r2:.2f}")
         
         # Train yield model
         logger.info("Training yield model...")
@@ -197,7 +303,8 @@ class CropPredictionModel:
         # Evaluate yield model
         y_pred = self.yield_model.predict(X_test)
         mse = mean_squared_error(y_test, y_pred)
-        logger.info(f"Yield model MSE: {mse:.2f}")
+        r2 = r2_score(y_test, y_pred)
+        logger.info(f"Yield model MSE: {mse:.2f}, R²: {r2:.2f}")
         
         self.is_trained = True
         
@@ -214,15 +321,15 @@ class CropPredictionModel:
             # Save models
             joblib.dump(self.suitability_model, os.path.join(self.model_dir, 'suitability_model.pkl'))
             joblib.dump(self.yield_model, os.path.join(self.model_dir, 'yield_model.pkl'))
-            joblib.dump(self.label_encoders, os.path.join(self.model_dir, 'label_encoders.pkl'))
             joblib.dump(self.scaler, os.path.join(self.model_dir, 'scaler.pkl'))
+            joblib.dump(self.crop_optimal_ranges, os.path.join(self.model_dir, 'crop_ranges.pkl'))
             
             # Save metadata
             metadata = {
                 'training_date': datetime.now().isoformat(),
                 'model_version': '1.0',
-                'features': ['crop_type', 'season', 'soil_type', 'area', 'nitrogen', 
-                           'phosphorus', 'potassium', 'rainfall', 'temperature']
+                'features': ['nitrogen', 'phosphorus', 'potassium', 
+                           'temperature', 'humidity', 'ph', 'rainfall']
             }
             
             with open(os.path.join(self.model_dir, 'metadata.pkl'), 'wb') as f:
@@ -238,14 +345,14 @@ class CropPredictionModel:
         try:
             suitability_path = os.path.join(self.model_dir, 'suitability_model.pkl')
             yield_path = os.path.join(self.model_dir, 'yield_model.pkl')
-            encoders_path = os.path.join(self.model_dir, 'label_encoders.pkl')
             scaler_path = os.path.join(self.model_dir, 'scaler.pkl')
+            ranges_path = os.path.join(self.model_dir, 'crop_ranges.pkl')
             
-            if all(os.path.exists(path) for path in [suitability_path, yield_path, encoders_path, scaler_path]):
+            if all(os.path.exists(path) for path in [suitability_path, yield_path, scaler_path, ranges_path]):
                 self.suitability_model = joblib.load(suitability_path)
                 self.yield_model = joblib.load(yield_path)
-                self.label_encoders = joblib.load(encoders_path)
                 self.scaler = joblib.load(scaler_path)
+                self.crop_optimal_ranges = joblib.load(ranges_path)
                 self.is_trained = True
                 logger.info("Models loaded successfully!")
             else:
@@ -255,9 +362,10 @@ class CropPredictionModel:
             logger.error(f"Error loading models: {str(e)}")
             self.is_trained = False
     
-    def predict(self, crop_type, season, area, soil_type, nitrogen, phosphorus, potassium, rainfall, temperature):
+    def predict(self, nitrogen, phosphorus, potassium, rainfall, temperature, humidity=70, ph=6.5):
         """
         Make prediction using trained ML models
+        Only environmental and soil nutrient parameters as input
         """
         if not self.is_trained:
             logger.warning("Models not trained. Training now...")
@@ -266,48 +374,34 @@ class CropPredictionModel:
         try:
             # Prepare input data
             input_data = {
-                'crop_type': crop_type,
-                'season': season,
-                'soil_type': soil_type,
-                'area': area,
                 'nitrogen': nitrogen,
                 'phosphorus': phosphorus,
                 'potassium': potassium,
-                'rainfall': rainfall,
-                'temperature': temperature
+                'temperature': temperature,
+                'humidity': humidity,
+                'ph': ph,
+                'rainfall': rainfall
             }
             
-            # Create DataFrame
-            df_input = pd.DataFrame([input_data])
+            # Create numpy array for prediction
+            input_features = np.array([[nitrogen, phosphorus, potassium, temperature, humidity, ph, rainfall]])
             
-            # Encode categorical variables
-            categorical_features = ['crop_type', 'season', 'soil_type']
-            for feature in categorical_features:
-                if feature in self.label_encoders:
-                    try:
-                        df_input[feature] = self.label_encoders[feature].transform(df_input[feature])
-                    except ValueError:
-                        # Handle unknown categories
-                        logger.warning(f"Unknown category for {feature}: {input_data[feature]}")
-                        df_input[feature] = 0  # Default to first category
-            
-            # Scale numerical features
-            numerical_features = ['area', 'nitrogen', 'phosphorus', 'potassium', 'rainfall', 'temperature']
-            df_scaled = df_input.copy()
-            df_scaled[numerical_features] = self.scaler.transform(df_input[numerical_features])
+            # Scale input features
+            input_scaled = self.scaler.transform(input_features)
             
             # Make predictions
-            suitability_score = self.suitability_model.predict(df_scaled)[0]
-            estimated_yield = self.yield_model.predict(df_scaled)[0]
+            suitability_score = self.suitability_model.predict(input_scaled)[0]
+            estimated_yield = self.yield_model.predict(input_scaled)[0]
             
             # Ensure reasonable bounds
             suitability_score = np.clip(suitability_score, 0, 100)
             estimated_yield = max(0, estimated_yield)
             
+            # Find the most suitable crop based on conditions
+            recommended_crop = self.find_recommended_crop(input_data)
+            
             # Generate recommendations based on predictions
-            recommendations = self.generate_recommendations(
-                crop_type, suitability_score, input_data
-            )
+            recommendations = self.generate_recommendations(suitability_score, input_data)
             
             # Create result message
             suitability_text = (
@@ -317,20 +411,20 @@ class CropPredictionModel:
             )
             
             result = (
-                f"Based on your field conditions, {crop_type} cultivation shows "
-                f"{suitability_text.lower()} suitability ({suitability_score:.1f}%) "
-                f"for {season} season in {area} hectares."
+                f"Based on your field conditions, the suitability for crop cultivation is "
+                f"{suitability_text.lower()} ({suitability_score:.1f}%). "
+                f"Recommended crop: {recommended_crop}"
             )
             
             yield_estimation = (
-                f"Estimated yield: {estimated_yield:.2f} tons "
-                f"(Average: {estimated_yield/area:.2f} tons/hectare)"
+                f"Estimated yield: {estimated_yield:.2f} tons/hectare"
             )
             
             return {
                 'result': result,
                 'yield_estimation': yield_estimation,
                 'suitability_score': round(suitability_score, 1),
+                'recommended_crop': recommended_crop,
                 'recommendations': recommendations,
                 'prediction_method': 'Machine Learning Model'
             }
@@ -338,41 +432,83 @@ class CropPredictionModel:
         except Exception as e:
             logger.error(f"Prediction error: {str(e)}")
             # Fallback to simple prediction
-            return self.fallback_prediction(crop_type, season, area)
+            return self.fallback_prediction()
     
-    def generate_recommendations(self, crop_type, suitability_score, input_data):
+    def find_recommended_crop(self, input_data):
+        """
+        Find the most suitable crop based on input conditions
+        """
+        best_crop = "General Crops"
+        best_score = 0
+        
+        for crop, ranges in self.crop_optimal_ranges.items():
+            score = 0
+            factors_considered = 0
+            
+            for factor, value in input_data.items():
+                if factor in ranges:
+                    min_val, max_val = ranges[factor]
+                    if min_val <= value <= max_val:
+                        score += 100
+                    else:
+                        if value < min_val:
+                            deviation = (min_val - value) / min_val
+                        else:
+                            deviation = (value - max_val) / max_val
+                        score += max(0, 100 - (deviation * 100))
+                    factors_considered += 1
+            
+            if factors_considered > 0:
+                average_score = score / factors_considered
+                if average_score > best_score:
+                    best_score = average_score
+                    best_crop = crop
+        
+        return best_crop
+    
+    def generate_recommendations(self, suitability_score, input_data):
         """Generate recommendations based on prediction results"""
         recommendations = []
         
         if suitability_score < 70:
             recommendations.append(
-                f"The current conditions show suboptimal suitability for {crop_type}. "
-                "Consider soil amendments or alternative crops."
+                "The current conditions show suboptimal suitability for most crops. "
+                "Consider soil amendments or consulting an agricultural expert."
             )
         
         if input_data['nitrogen'] < 50:
             recommendations.append("Consider increasing nitrogen application for better growth.")
+        elif input_data['nitrogen'] > 120:
+            recommendations.append("Nitrogen levels are high. Consider reducing application to avoid environmental impact.")
         
         if input_data['phosphorus'] < 30:
             recommendations.append("Phosphorus levels appear low. Consider phosphate fertilizers.")
         
-        if input_data['potassium'] < 30:
+        if input_data['potassium'] < 40:
             recommendations.append("Potassium supplementation may improve crop resilience.")
         
         if input_data['rainfall'] < 500:
             recommendations.append("Low rainfall conditions. Ensure adequate irrigation.")
+        elif input_data['rainfall'] > 1500:
+            recommendations.append("High rainfall conditions. Ensure proper drainage to prevent waterlogging.")
+        
+        if input_data['ph'] < 6.0:
+            recommendations.append("Soil pH is acidic. Consider lime application.")
+        elif input_data['ph'] > 7.5:
+            recommendations.append("Soil pH is alkaline. Consider sulfur or organic matter application.")
         
         if not recommendations:
-            recommendations.append("Current conditions are suitable for the selected crop.")
+            recommendations.append("Current conditions are suitable for most crops. Maintain good agricultural practices.")
         
         return recommendations
     
-    def fallback_prediction(self, crop_type, season, area):
+    def fallback_prediction(self):
         """Fallback prediction when ML model fails"""
         return {
-            'result': f"Basic prediction for {crop_type} in {season} season for {area} hectares.",
-            'yield_estimation': f"Estimated yield: {3.0 * area:.2f} tons",
+            'result': "Basic prediction based on general agricultural conditions.",
+            'yield_estimation': "Estimated yield: 3.0-5.0 tons/hectare",
             'suitability_score': 75.0,
+            'recommended_crop': "General Crops",
             'recommendations': ["Machine learning model unavailable. Using basic estimation."],
             'prediction_method': 'Fallback Method'
         }
@@ -381,14 +517,12 @@ class CropPredictionModel:
 # Global model instance
 ml_model = CropPredictionModel()
 
-def get_ml_prediction(crop_type, season, area, soil_type, nitrogen, phosphorus, potassium, rainfall, temperature):
+def get_ml_prediction(nitrogen, phosphorus, potassium, rainfall, temperature, humidity=70, ph=6.5):
     """
     Main function to get ML-based crop prediction
+    Now only takes environmental and soil nutrient parameters
     """
-    return ml_model.predict(
-        crop_type, season, area, soil_type, 
-        nitrogen, phosphorus, potassium, rainfall, temperature
-    )
+    return ml_model.predict(nitrogen, phosphorus, potassium, rainfall, temperature, humidity, ph)
 
 def train_models_if_needed():
     """Train models if they haven't been trained yet"""

@@ -86,32 +86,54 @@
                     <i class="fas fa-exclamation-triangle crop-icon error-icon"></i>
                     <h2 class="result-text text-danger">Prediction Failed</h2>
                     <div class="alert alert-danger">
-                        {{ crop }}
+                        {{ prediction.result if prediction else "Unknown error occurred" }}
                     </div>
                     <p class="text-muted">Please check your input values and try again.</p>
                 {% else %}
                     <i class="fas fa-seedling crop-icon success-icon"></i>
                     <h2 class="result-text text-success">Recommended Crop</h2>
-                    <div class="crop-name">{{ crop }}</div>
+                    <div class="crop-name">{{ prediction.recommended_crop }}</div>
                     
                     <div class="crop-info">
-                        <h5><i class="fas fa-info-circle me-2"></i>About {{ crop.title() }}</h5>
+                        <h5><i class="fas fa-info-circle me-2"></i>Prediction Result</h5>
                         <p class="text-muted mb-0">
-                            Based on your soil and environmental conditions, <strong>{{ crop.title() }}</strong> 
-                            is the most suitable crop for optimal yield and growth.
+                            {{ prediction.result }}
                         </p>
                     </div>
                     
-                    <div class="row text-start">
-                        <div class="col-md-6">
-                            <h6><i class="fas fa-check-circle me-2 text-success"></i>Benefits:</h6>
-                            <ul class="list-unstyled ms-3">
-                                <li><i class="fas fa-arrow-right me-2 text-primary"></i>Research market demand</li>
-                                <li><i class="fas fa-arrow-right me-2 text-primary"></i>Plan cultivation schedule</li>
-                                <li><i class="fas fa-arrow-right me-2 text-primary"></i>Consult local experts</li>
-                            </ul>
-                        </div>
+                    <div class="crop-info">
+                        <h5><i class="fas fa-chart-bar me-2"></i>Yield Estimation</h5>
+                        <p class="text-muted mb-0">
+                            {{ prediction.yield_estimation }}
+                        </p>
                     </div>
+                    
+                    <div class="crop-info">
+                        <h5><i class="fas fa-star me-2"></i>Suitability Score</h5>
+                        <p class="text-muted mb-0">
+                            {{ prediction.suitability_score }}%
+                        </p>
+                    </div>
+                    
+                    {% if prediction.recommendations %}
+                    <div class="crop-info">
+                        <h5><i class="fas fa-lightbulb me-2"></i>Recommendations</h5>
+                        <ul class="text-muted mb-0">
+                            {% if prediction.recommendations is string %}
+                                {% set recommendations = prediction.recommendations.split('; ') %}
+                                {% for recommendation in recommendations %}
+                                    {% if recommendation %}
+                                    <li>{{ recommendation }}</li>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                {% for recommendation in prediction.recommendations %}
+                                <li>{{ recommendation }}</li>
+                                {% endfor %}
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% endif %}
                 {% endif %}
                 
                 <div class="d-flex justify-content-center action-buttons mt-4">
@@ -127,38 +149,13 @@
     </div>
 </div>
 
-<Editor.edit_file_by_replace>
-<file_name>/workspace/uploads/agrix/app/routes.py</file_name>
-<to_replace>            return render_template('crop_prediction.html', 
-                                  prediction_result=prediction_data['result'],
-                                  yield_estimation=prediction_data['yield_estimation'],
-                                  suitability_score=prediction_data.get('suitability_score', 75),
-                                  recommendations=prediction_data.get('recommendations', []),
-                                  crop_type=crop_type, 
-                                  season=season, 
-                                  area=area)</to_replace>
-<new_content>            return render_template('crop_prediction.html', 
-                                  crop=crop_type,
-                                  prediction_result=prediction_data['result'],
-                                  yield_estimation=prediction_data['yield_estimation'],
-                                  suitability_score=prediction_data.get('suitability_score', 75),
-                                  recommendations=prediction_data.get('recommendations', []),
-                                  crop_type=crop_type, 
-                                  season=season, 
-                                  area=area,
-                                  error=False)
-            </div>
-        </div>
-    </div>
-</div>
-
-{% if not error %}
+{% if not error and prediction %}
 <section class="container my-5">
     <div class="row">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-seedling me-2"></i>Crop Information: {{ crop.title() }}</h5>
+                    <h5 class="mb-0"><i class="fas fa-seedling me-2"></i>Crop Information: {{ prediction.recommended_crop.title() }}</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -166,15 +163,15 @@
                             <h6><i class="fas fa-leaf me-2"></i>Growing Tips:</h6>
                             <div class="alert alert-info">
                                 <ul class="mb-0">
-                                    {% if crop.lower() == 'rice' %}
+                                    {% if prediction.recommended_crop.lower() == 'rice' %}
                                     <li>Requires flooded fields for optimal growth</li>
                                     <li>Plant during monsoon season</li>
                                     <li>Harvest in 3-4 months</li>
-                                    {% elif crop.lower() == 'wheat' %}
+                                    {% elif prediction.recommended_crop.lower() == 'wheat' %}
                                     <li>Best grown in cooler months</li>
                                     <li>Requires well-drained soil</li>
                                     <li>Harvest in 4-6 months</li>
-                                    {% elif crop.lower() == 'maize' %}
+                                    {% elif prediction.recommended_crop.lower() == 'maize' %}
                                     <li>Needs warm weather and adequate rainfall</li>
                                     <li>Plant after last frost</li>
                                     <li>Harvest in 60-90 days</li>
@@ -224,7 +221,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Add confetti effect for successful predictions
-    {% if not error %}
     // Simple confetti effect
     function createConfetti() {
         const colors = ['#667eea', '#764ba2', '#28a745', '#ffc107'];
@@ -264,9 +260,10 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     document.head.appendChild(style);
     
-    // Trigger confetti after a short delay
-    setTimeout(createConfetti, 500);
-    
+    // Trigger confetti after a short delay if there's no error
+    if (typeof error === 'undefined' || !error) {
+        setTimeout(createConfetti, 500);
+    }
 });
 </script>
 {% endblock %}

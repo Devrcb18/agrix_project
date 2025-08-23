@@ -26,12 +26,11 @@ class CropPrediction(db.Model):
     __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    crop_type = db.Column(db.String(64), nullable=False)
-    season = db.Column(db.String(20), nullable=False)
-    area = db.Column(db.Float, nullable=False)  
+    recommended_crop = db.Column(db.String(64), nullable=True)
     prediction_result = db.Column(db.Text, nullable=False)
-    yield_estimation = db.Column(db.Text, nullable=True)  
-    soil_type = db.Column(db.String(100), nullable=True)
+    yield_estimation = db.Column(db.Text, nullable=True)
+    suitability_score = db.Column(db.Float, nullable=True)
+    recommendations = db.Column(db.Text, nullable=True)
     nitrogen = db.Column(db.Float, nullable=True)
     phosphorus = db.Column(db.Float, nullable=True)
     potassium = db.Column(db.Float, nullable=True)
@@ -39,10 +38,9 @@ class CropPrediction(db.Model):
     humidity = db.Column(db.Float, nullable=True)
     rainfall = db.Column(db.Float, nullable=True)
     ph = db.Column(db.Float, nullable=True)
-    confidence = db.Column(db.Float, nullable=True)
-    expected_yield = db.Column(db.Float, nullable=True)
+    estimated_yield = db.Column(db.Float, nullable=True)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
-        return f'<CropPrediction {self.crop_type} for {self.user_id}>'
+        return f'<CropPrediction {self.recommended_crop} for {self.user_id}>'
