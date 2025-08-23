@@ -631,17 +631,25 @@ def crop_prediction():
             flash('Prediction generated successfully!', 'success')
             
             return render_template('crop_prediction.html', 
+                                  crop=crop_type,
                                   prediction_result=prediction_data['result'],
                                   yield_estimation=prediction_data['yield_estimation'],
-                                  suitability_score=prediction_data['suitability_score'],
-                                  recommendations=prediction_data['recommendations'])
+                                  suitability_score=prediction_data.get('suitability_score', 75),
+                                  recommendations=prediction_data.get('recommendations', []),
+                                  error=False)
         
         except ValueError as e:
             flash(f'Error in input values: {str(e)}', 'error')
+            return render_template('crop_prediction.html', 
+                                 crop=f'Input Error: {str(e)}', 
+                                 error=True)
         except Exception as e:
             flash(f'An error occurred: {str(e)}', 'error')
+            return render_template('crop_prediction.html', 
+                                 crop=f'System Error: {str(e)}', 
+                                 error=True)
     
-    return render_template('crop_prediction.html')
+    return render_template('crop_prediction_form.html')
 
 @main_bp.route('/predict_crop', methods=['POST'])
 def predict_crop():

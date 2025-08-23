@@ -115,13 +115,38 @@
                 {% endif %}
                 
                 <div class="d-flex justify-content-center action-buttons mt-4">
-                    <a href="{{ url_for('home') }}" class="btn btn-success">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-success">
                         <i class="fas fa-redo me-2"></i>Try Another Prediction
                     </a>
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
                         <i class="fas fa-chart-bar me-2"></i>View Analytics
                     </a>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<Editor.edit_file_by_replace>
+<file_name>/workspace/uploads/agrix/app/routes.py</file_name>
+<to_replace>            return render_template('crop_prediction.html', 
+                                  prediction_result=prediction_data['result'],
+                                  yield_estimation=prediction_data['yield_estimation'],
+                                  suitability_score=prediction_data.get('suitability_score', 75),
+                                  recommendations=prediction_data.get('recommendations', []),
+                                  crop_type=crop_type, 
+                                  season=season, 
+                                  area=area)</to_replace>
+<new_content>            return render_template('crop_prediction.html', 
+                                  crop=crop_type,
+                                  prediction_result=prediction_data['result'],
+                                  yield_estimation=prediction_data['yield_estimation'],
+                                  suitability_score=prediction_data.get('suitability_score', 75),
+                                  recommendations=prediction_data.get('recommendations', []),
+                                  crop_type=crop_type, 
+                                  season=season, 
+                                  area=area,
+                                  error=False)
             </div>
         </div>
     </div>
