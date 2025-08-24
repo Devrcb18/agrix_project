@@ -17,7 +17,7 @@
             <div class="card-body">
                 <p class="lead">Estimate your crop yield based on various factors</p>
                 
-                <form method="POST" action="{{ url_for('main.crop_prediction') }}">
+                <form method="POST" action="{{ url_for('main.yield_estimation') }}">
                     <div class="row mb-3">
                         <div class="col-md-4">
                             <div class="mb-3">
@@ -83,36 +83,23 @@
                             </div>
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-12">
                                         <h4>Yield Estimation</h4>
-                                        <p><strong>Estimated Yield:</strong> {{ yield_result.yield_per_hectare }} quintals/hectare</p>
-                                        <p><strong>Total Yield:</strong> {{ yield_result.total_yield }} quintals</p>
-                                        <p><strong>Confidence Level:</strong> {{ yield_result.confidence }}%</p>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <h4>Market Information</h4>
-                                        <p><strong>Current Market Price:</strong> ₹{{ yield_result.market_price }}/quintal</p>
-                                        <p><strong>Estimated Value:</strong> ₹{{ yield_result.estimated_value }}</p>
+                                        <p><strong>Result:</strong> {{ yield_result.result }}</p>
+                                        <p><strong>Estimated Yield:</strong> {{ yield_result.yield_estimation }}</p>
+                                        <p><strong>Suitability Score:</strong> {{ yield_result.suitability_score }}%</p>
+                                        <p><strong>Recommended Crop:</strong> {{ yield_result.recommended_crop }}</p>
                                     </div>
                                 </div>
                                 
                                 <hr>
                                 
-                                <h4>Yield Optimization Suggestions</h4>
+                                <h4>Recommendations</h4>
                                 <ul>
-                                    {% for suggestion in yield_result.suggestions %}
-                                        <li>{{ suggestion }}</li>
+                                    {% for recommendation in yield_result.recommendations %}
+                                        <li>{{ recommendation }}</li>
                                     {% endfor %}
                                 </ul>
-                                
-                                {% if yield_result.chart_data %}
-                                <div class="row mt-4">
-                                    <div class="col-md-12">
-                                        <h4>Yield Comparison</h4>
-                                        <canvas id="yieldComparisonChart" height="250"></canvas>
-                                    </div>
-                                </div>
-                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -126,57 +113,4 @@
 {% endblock %}
 
 {% block scripts %}
-{% if yield_result and yield_result.chart_data %}
-<script>
-    const yieldCtx = document.getElementById('yieldComparisonChart').getContext('2d');
-    const chartDataJson = '{{ yield_result.chart_data|tojson|safe if yield_result.chart_data else "{}" }}';
-    const chartData = JSON.parse(chartDataJson);
-    
-    const yieldComparisonChart = new Chart(yieldCtx, {
-        type: 'bar',
-        data: {
-            labels: chartData.labels,
-            datasets: [{
-                label: 'Yield (quintals/hectare)',
-                data: chartData.values,
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.6)',
-                    'rgba(54, 162, 235, 0.6)',
-                    'rgba(255, 206, 86, 0.6)',
-                    'rgba(75, 192, 192, 0.6)',
-                ],
-                borderColor: [
-                    'rgba(255, 99, 132, 1)',
-                    'rgba(54, 162, 235, 1)',
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(75, 192, 192, 1)',
-                ],
-                borderWidth: 1
-            }]
-        },
-        options: {
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Yield (quintals/hectare)'
-                    }
-                }
-            },
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Yield Comparison'
-                },
-                legend: {
-                    display: false
-                }
-            },
-            responsive: true,
-            maintainAspectRatio: false
-        }
-    });
-</script>
-{% endif %}
 {% endblock %}

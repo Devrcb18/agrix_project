@@ -26,21 +26,32 @@ class CropPrediction(db.Model):
     __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    recommended_crop = db.Column(db.String(64), nullable=True)
-    prediction_result = db.Column(db.Text, nullable=False)
-    yield_estimation = db.Column(db.Text, nullable=True)
-    suitability_score = db.Column(db.Float, nullable=True)
-    recommendations = db.Column(db.Text, nullable=True)
-    nitrogen = db.Column(db.Float, nullable=True)
-    phosphorus = db.Column(db.Float, nullable=True)
-    potassium = db.Column(db.Float, nullable=True)
-    temperature = db.Column(db.Float, nullable=True)
-    humidity = db.Column(db.Float, nullable=True)
-    rainfall = db.Column(db.Float, nullable=True)
-    ph = db.Column(db.Float, nullable=True)
-    estimated_yield = db.Column(db.Float, nullable=True)
-    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Input parameters
+    nitrogen = db.Column(db.Float)
+    phosphorus = db.Column(db.Float)
+    potassium = db.Column(db.Float)
+    rainfall = db.Column(db.Float)
+    temperature = db.Column(db.Float)
+    humidity = db.Column(db.Float)
+    ph = db.Column(db.Float)
+    
+    # Prediction results
+    suitability_score = db.Column(db.Float)
+    estimated_yield = db.Column(db.Float)
+    recommended_crop = db.Column(db.String(100))
+    recommendations = db.Column(db.Text)
+    
+    # Legacy fields (keep for backward compatibility)
+    crop_type = db.Column(db.String(100), nullable=False)
+    season = db.Column(db.String(50))
+    area = db.Column(db.Float)
+    soil_type = db.Column(db.String(50))
+    prediction_result = db.Column(db.Text)
+    yield_estimation = db.Column(db.Text)
+    
+    # user relationship is handled by the backref in User model
     
     def __repr__(self):
         return f'<CropPrediction {self.recommended_crop} for {self.user_id}>'

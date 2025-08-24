@@ -4,6 +4,7 @@ from werkzeug.security import check_password_hash
 from werkzeug.utils import secure_filename
 from __init__ import db
 from models import User, CropPrediction
+import sqlalchemy
 import requests
 import json
 import os
@@ -52,16 +53,6 @@ WEATHER_API_URL = 'https://api.openweathermap.org/data/2.5/weather'
 # Make sure upload folder exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# ---------- Load model + scaler ----------
-try:
-    scaler = pickle.load(open(os.path.join(BASE_DIR, "models", "scalar_for_crop.pkl"), "rb"))
-    model = pickle.load(open(os.path.join(BASE_DIR, "models", "model_for_crops.pkl"), "rb"))
-    model_loaded = True
-except FileNotFoundError:
-    print("⚠️ Warning: Model files not found. Prediction functionality disabled.")
-    scaler = None
-    model = None
-    model_loaded = False
 
 # ---------- Crop labels ----------
 crop_labels = {
@@ -453,7 +444,7 @@ def get_emergency_fallback(filename):
 # Routes
 @main_bp.route('/')
 def index():
-    return render_template('index.html', model_loaded=model_loaded)
+    return render_template('index.html', model_loaded=ML_MODEL_AVAILABLE)
 
 @main_bp.route('/about')
 def about():
@@ -542,8 +533,10 @@ def signup():
         db.session.add(new_user)
         db.session.commit()
         
-        flash('Account created successfully! Please log in.')
-        return redirect(url_for('main.login'))
+        # Automatically log in the user after account creation
+        login_user(new_user)
+        flash('Account created successfully! You are now logged in.')
+        return redirect(url_for('main.dashboard'))
     
     return render_template('signup.html')
 
@@ -580,6 +573,7 @@ def api_dashboard_data():
     return jsonify(get_dashboard_data(crop))
 
 # Crop prediction routes
+
 @main_bp.route('/crop-prediction', methods=['GET', 'POST'])
 @login_required
 def crop_prediction():
@@ -630,6 +624,12 @@ def crop_prediction():
                 suitability_score=prediction_data['suitability_score'],
                 estimated_yield=prediction_data.get('estimated_yield', 0),
                 recommended_crop=prediction_data.get('recommended_crop', 'Unknown'),
+                crop_type=prediction_data.get('recommended_crop', 'Unknown'),
+                season='Unknown',
+                area=0.0,
+                soil_type='Unknown',
+                prediction_result=prediction_data.get('result', 'Unknown'),
+                yield_estimation=prediction_data.get('yield_estimation', 'Unknown'),
                 recommendations='; '.join(prediction_data.get('recommendations', []))
             )
             
@@ -644,14 +644,28 @@ def crop_prediction():
         
         except ValueError as e:
             flash(f'Error in input values: {str(e)}', 'error')
-            return render_template('crop_prediction.html', 
-                                 error=True)
+            return render_template('crop_prediction.html',
+                             error=True)
+        except sqlalchemy.exc.IntegrityError as e:
+            db.session.rollback()  # Rollback the failed transaction
+            flash('Database integrity error. Please check your input values.', 'error')
+            return render_template('crop_prediction.html',
+                             error=True)
+        except sqlalchemy.exc.OperationalError as e:
+            db.session.rollback()  # Rollback the failed transaction
+            flash('Database schema needs update. Prediction saved without database storage.', 'warning')
+            
+            # Still show the prediction result
+            return render_template('crop_prediction.html',
+                                  prediction=prediction_data,
+                                  error=False)
         except Exception as e:
+            db.session.rollback()  # Rollback any failed transaction
             flash(f'An error occurred: {str(e)}', 'error')
-            return render_template('crop_prediction.html', 
-                                 error=True)
+            return render_template('crop_prediction.html',
+                             error=True)
     
-    return render_template('crop_prediction.html')
+    return render_template('crop_prediction_form.html')
 @main_bp.route('/yield-estimation', methods=['GET', 'POST'])
 @login_required
 def yield_estimation():
@@ -702,6 +716,12 @@ def yield_estimation():
                 suitability_score=prediction_data['suitability_score'],
                 estimated_yield=prediction_data.get('estimated_yield', 0),
                 recommended_crop=prediction_data.get('recommended_crop', 'Unknown'),
+                crop_type=prediction_data.get('recommended_crop', 'Unknown'),
+                season='Unknown',
+                area=0.0,
+                soil_type='Unknown',
+                prediction_result=prediction_data.get('result', 'Unknown'),
+                yield_estimation=prediction_data.get('yield_estimation', 'Unknown'),
                 recommendations='; '.join(prediction_data.get('recommendations', []))
             )
             
@@ -710,20 +730,29 @@ def yield_estimation():
             
             flash('Yield estimation generated successfully!', 'success')
             
-            return render_template('crop_prediction.html',
-                                  prediction=prediction_data,
+            return render_template('yield_estimation.html',
+                                  yield_result=prediction_data,
                                   error=False)
         
         except ValueError as e:
             flash(f'Error in input values: {str(e)}', 'error')
-            return render_template('crop_prediction.html',
-                                 error=True)
+            return render_template('yield_estimation.html',
+                             yield_result={'result': f'Error in input values: {str(e)}'},
+                             error=True)
+        except sqlalchemy.exc.IntegrityError as e:
+            db.session.rollback()  # Rollback the failed transaction
+            flash('Database integrity error. Please check your input values.', 'error')
+            return render_template('yield_estimation.html',
+                             yield_result={'result': 'Database integrity error. Please check your input values.'},
+                             error=True)
         except Exception as e:
+            db.session.rollback()  # Rollback any failed transaction
             flash(f'An error occurred: {str(e)}', 'error')
-            return render_template('crop_prediction.html',
-                                 error=True)
+            return render_template('yield_estimation.html',
+                             yield_result={'result': f'An error occurred: {str(e)}'},
+                             error=True)
     
-    return render_template('crop_prediction.html')
+    return render_template('yield_estimation.html')
 
 # Prediction history routes
 @main_bp.route('/predictions')

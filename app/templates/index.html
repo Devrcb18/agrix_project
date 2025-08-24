@@ -13,7 +13,7 @@
                 <p class="mb-4">Get intelligent crop recommendations, weather forecasts, pest management, and market insights all in one place.</p>
                 
                 {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-success btn-lg me-3 shadow-lg" id="dashboard-btn">
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-light btn-lg me-3">
                         <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
                     </a>
                 {% else %}

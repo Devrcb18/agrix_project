@@ -383,8 +383,10 @@ class CropPredictionModel:
                 'rainfall': rainfall
             }
             
-            # Create numpy array for prediction
-            input_features = np.array([[nitrogen, phosphorus, potassium, temperature, humidity, ph, rainfall]])
+            # Create DataFrame with feature names to preserve column order
+            feature_names = ['nitrogen', 'phosphorus', 'potassium', 'temperature', 'humidity', 'ph', 'rainfall']
+            input_features = pd.DataFrame([[nitrogen, phosphorus, potassium, temperature, humidity, ph, rainfall]],
+                                          columns=feature_names)
             
             # Scale input features
             input_scaled = self.scaler.transform(input_features)

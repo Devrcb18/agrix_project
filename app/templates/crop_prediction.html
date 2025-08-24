@@ -92,7 +92,9 @@
                 {% else %}
                     <i class="fas fa-seedling crop-icon success-icon"></i>
                     <h2 class="result-text text-success">Recommended Crop</h2>
-                    <div class="crop-name">{{ prediction.recommended_crop }}</div>
+                    {% if prediction.recommended_crop %}
+                        <div class="crop-name">{{ prediction.recommended_crop }}</div>
+                    {% endif %}
                     
                     <div class="crop-info">
                         <h5><i class="fas fa-info-circle me-2"></i>Prediction Result</h5>
@@ -101,19 +103,23 @@
                         </p>
                     </div>
                     
+                    {% if prediction.yield_estimation %}
                     <div class="crop-info">
                         <h5><i class="fas fa-chart-bar me-2"></i>Yield Estimation</h5>
                         <p class="text-muted mb-0">
                             {{ prediction.yield_estimation }}
                         </p>
                     </div>
+                    {% endif %}
                     
+                    {% if prediction.suitability_score %}
                     <div class="crop-info">
                         <h5><i class="fas fa-star me-2"></i>Suitability Score</h5>
                         <p class="text-muted mb-0">
                             {{ prediction.suitability_score }}%
                         </p>
                     </div>
+                    {% endif %}
                     
                     {% if prediction.recommendations %}
                     <div class="crop-info">
@@ -149,7 +155,7 @@
     </div>
 </div>
 
-{% if not error and prediction %}
+{% if not error and prediction and prediction.recommended_crop %}
 <section class="container my-5">
     <div class="row">
         <div class="col-md-12">

@@ -1,155 +1,332 @@
 {% extends "base.html" %}
 
-{% block title %}Agrix{% endblock %}
+{% block title %}Crop Problem Analysis - AgriX{% endblock %}
+
+{% block extra_head %}
+<style>
+    .analysis-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 15px;
+        color: white;
+    }
+    
+    .upload-area {
+        border: 2px dashed rgba(255, 255, 255, 0.5);
+        border-radius: 10px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 2rem;
+    }
+    
+    .upload-area:hover {
+        border-color: white;
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .upload-area i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    
+    .results-card {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 2rem;
+        color: #333;
+        margin-top: 2rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .confidence-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+    
+    .confidence-high {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .confidence-medium {
+        background: #fff3cd;
+        color: #856404;
+    }
+    
+    .confidence-low {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .recommendations-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+    }
+    
+    .btn-download {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        border: none;
+        border-radius: 25px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+    
+    .btn-download:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .error-message {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 1rem;
+        border-radius: 5px;
+        margin: 1rem 0;
+    }
+    
+    .preview-image {
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: 10px;
+        margin: 1rem 0;
+        display: none;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-   
-
-<header>
-  <h1>🌱 Crop Disease Detection</h1>
-</header>
-
-<div class="container">
-  <div class="upload" onclick="document.getElementById('imageInput').click();">
-    <p>Click or drag & drop an image of your crop</p>
-    <input type="file" id="imageInput" accept="image/*" hidden>
-  </div>
-  <img id="preview" alt="Image preview">
-
-  <div class="results" id="results">
-    <h2>Analysis Results</h2>
-    <p><strong>Plant:</strong> <span id="plantName"></span></p>
-    <p><strong>Disease:</strong> <span id="diseaseName"></span></p>
-    <p><strong>Confidence:</strong> <span id="confidence"></span>%</p>
-    <p><strong>Description:</strong> <span id="description"></span></p>
-    
-    <div class="recommendations">
-      <h3>Recommendations</h3>
-      <ul id="recommendList"></ul>
+<div class="analysis-container">
+    <div class="text-center mb-4">
+        <i class="fas fa-leaf fa-3x mb-3"></i>
+        <h1>🌱 Crop Problem Analysis</h1>
+        <p class="lead">Upload an image of your crop to get AI-powered disease detection and treatment recommendations</p>
     </div>
-
-    <button class="btn" onclick="downloadPDF()">📄 Download PDF Report</button>
-  </div>
+    
+    {% if error %}
+        <div class="error-message">
+            <strong>Error:</strong> {{ error }}
+        </div>
+    {% endif %}
+    
+    {% if not prediction %}
+        <form method="POST" enctype="multipart/form-data" id="analysisForm">
+            <div class="upload-area" onclick="document.getElementById('image').click();">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Click or drag & drop an image of your crop problem</p>
+                <p class="small">Supported formats: JPG, PNG, GIF (Max size: 5MB)</p>
+                <input type="file" id="image" name="image" accept="image/*" hidden required>
+            </div>
+            
+            <div class="text-center">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-search me-2"></i>Analyze Crop Problem
+                </button>
+            </div>
+        </form>
+        
+        <img id="preview" class="preview-image" alt="Image preview">
+    {% endif %}
+    
+    {% if prediction %}
+        <div class="results-card">
+            <div class="text-center mb-4">
+                <i class="fas fa-leaf fa-2x mb-2"></i>
+                <h2>Crop Analysis Results</h2>
+            </div>
+            
+            <div class="mb-3">
+                <h4><i class="fas fa-exclamation-triangle me-2"></i>Problem Identified</h4>
+                <h3>{{ prediction.problem_name }}</h3>
+                
+                <span class="confidence-badge
+                    {% if prediction.confidence >= 80 %}confidence-high
+                    {% elif prediction.confidence >= 60 %}confidence-medium
+                    {% else %}confidence-low{% endif %}">
+                    Confidence: {{ prediction.confidence }}%
+                </span>
+            </div>
+            
+            <div class="mb-4">
+                <h5><i class="fas fa-info-circle me-2"></i>Description</h5>
+                <p>{{ prediction.description }}</p>
+            </div>
+            
+            {% if prediction.preventive_measures %}
+                <div class="recommendations-section">
+                    <h5><i class="fas fa-shield-alt me-2"></i>Preventive Measures</h5>
+                    
+                    {% if prediction.preventive_measures.immediate %}
+                        <h6>Immediate Actions:</h6>
+                        <ul>
+                            {% for measure in prediction.preventive_measures.immediate %}
+                                <li>{{ measure }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    
+                    {% if prediction.preventive_measures.long_term %}
+                        <h6>Long-term Prevention:</h6>
+                        <ul>
+                            {% for measure in prediction.preventive_measures.long_term %}
+                                <li>{{ measure }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+            {% endif %}
+            
+            {% if prediction.solutions %}
+                <div class="recommendations-section">
+                    <h5><i class="fas fa-prescription-bottle me-2"></i>Treatment Solutions</h5>
+                    <ul>
+                        {% for solution in prediction.solutions %}
+                            <li>{{ solution }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+            
+            {% if prediction.additional_recommendations %}
+                <div class="recommendations-section">
+                    <h5><i class="fas fa-lightbulb me-2"></i>Additional Recommendations</h5>
+                    <p>{{ prediction.additional_recommendations }}</p>
+                </div>
+            {% endif %}
+            
+            <div class="text-center">
+                <button class="btn-download" onclick="downloadPDF()">
+                    <i class="fas fa-file-pdf me-2"></i>Download PDF Report
+                </button>
+                
+                <a href="{{ url_for('main.crop_problem_analysis') }}" class="btn btn-outline-secondary ms-2">
+                    <i class="fas fa-redo me-2"></i>Analyze Another Image
+                </a>
+            </div>
+        </div>
+        
+        <div id="analysisData" style="display: none;">
+            <span id="problemName">{{ prediction.problem_name }}</span>
+            <span id="confidence">{{ prediction.confidence }}</span>
+            <span id="description">{{ prediction.description }}</span>
+            <div id="preventiveMeasures">
+                {% if prediction.preventive_measures.immediate %}
+                    <h6>Immediate Actions:</h6>
+                    <ul>
+                        {% for measure in prediction.preventive_measures.immediate %}
+                            <li>{{ measure }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                {% if prediction.preventive_measures.long_term %}
+                    <h6>Long-term Prevention:</h6>
+                    <ul>
+                        {% for measure in prediction.preventive_measures.long_term %}
+                            <li>{{ measure }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+            <div id="solutions">
+                {% for solution in prediction.solutions %}
+                    <p>{{ solution }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
 </div>
 
 <script>
-  // ===== CONFIG =====
-const NABTA_API_KEY = "nabta_sk_1234567890abcdef1234567890abcdef";  
-const NABTA_API_URL = "https://api.nabta.ma/analyze";  
-
-// ===== DOM ELEMENTS =====
-const imageInput = document.getElementById("imageInput");
-const preview = document.getElementById("preview");
-const resultsDiv = document.getElementById("results");
-const plantName = document.getElementById("plantName");
-const diseaseName = document.getElementById("diseaseName");
-const confidence = document.getElementById("confidence");
-const description = document.getElementById("description");
-const recommendList = document.getElementById("recommendList");
-const loadingOverlay = document.getElementById("loadingOverlay");
-
-// ===== IMAGE UPLOAD + PREVIEW =====
-imageInput.addEventListener("change", e => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-        preview.src = ev.target.result;
-        preview.style.display = "block";
-        analyzeImage(file); // trigger API call
-    };
-    reader.readAsDataURL(file);
-});
-
-// ===== API CALL =====
-async function analyzeImage(file) {
-    try {
-        showLoading();
-
-        const formData = new FormData();
-        formData.append("image", file);
-
-        const response = await fetch(NABTA_API_URL, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${NABTA_API_KEY}`
-            },
-            body: formData
-        });
-
-        if (!response.ok) throw new Error("Network error while analyzing");
-
-        const apiResponse = await response.json();
-        console.log("API Response:", apiResponse);
-
-        if (apiResponse.status !== "success") {
-            showError(apiResponse.message || "Analysis failed");
-            return;
+    // Image preview functionality
+    document.getElementById('image').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('preview');
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
         }
-
-        processResults(apiResponse.analysis);
-
-    } catch (error) {
-        console.error("Error:", error);
-        showError("Failed to analyze image. Please try again.");
-    } finally {
-        hideLoading();
-    }
-}
-
-// ===== DISPLAY RESULTS =====
-function processResults(analysis) {
-    resultsDiv.style.display = "block";
-    plantName.textContent = analysis.plant || "Unknown";
-    diseaseName.textContent = analysis.disease || "Unknown";
-    confidence.textContent = analysis.confidence || "--";
-    description.textContent = analysis.description || "No description available";
-    recommendList.innerHTML = (analysis.recommendations || [])
-        .map(r => `<li>${r}</li>`)
-        .join("");
-}
-
-// ===== LOADING OVERLAY =====
-function showLoading() {
-    loadingOverlay.style.display = "flex";
-}
-function hideLoading() {
-    loadingOverlay.style.display = "none";
-}
-
-// ===== ERROR HANDLER =====
-function showError(message) {
-    resultsDiv.style.display = "block";
-    plantName.textContent = "Error";
-    diseaseName.textContent = message;
-    confidence.textContent = "--";
-    description.textContent = "";
-    recommendList.innerHTML = "";
-}
-
-// ===== PDF DOWNLOAD (Optional) =====
-function downloadPDF() {
-    if (resultsDiv.style.display === "none") return;
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-
-    doc.setFontSize(18);
-    doc.text("🌱 Crop Health Analysis Report", 20, 20);
-
-    doc.setFontSize(12);
-    doc.text(`Plant: ${plantName.textContent}`, 20, 40);
-    doc.text(`Disease: ${diseaseName.textContent}`, 20, 50);
-    doc.text(`Confidence: ${confidence.textContent}%`, 20, 60);
-    doc.text(`Description: ${description.textContent}`, 20, 70);
-
-    doc.text("Recommendations:", 20, 90);
-    [...recommendList.children].forEach((li, i) => {
-        doc.text(`- ${li.textContent}`, 25, 100 + i * 10);
     });
-
-    doc.save("crop_report.pdf");
-}
+    
+    // PDF download functionality
+    function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Add title
+        doc.setFontSize(22);
+        doc.setTextColor(40, 116, 166);
+        doc.text("🌱 Crop Health Analysis Report", 20, 20);
+        
+        // Add timestamp
+        const timestamp = new Date().toLocaleString();
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Generated on: ${timestamp}`, 20, 30);
+        
+        // Add problem information
+        doc.setFontSize(16);
+        doc.setTextColor(0, 0, 0);
+        doc.text("Problem Identified:", 20, 45);
+        
+        doc.setFontSize(14);
+        doc.text(document.getElementById('problemName').textContent, 25, 55);
+        
+        // Add confidence
+        doc.setFontSize(12);
+        doc.text(`Confidence: ${document.getElementById('confidence').textContent}%`, 25, 65);
+        
+        // Add description
+        doc.setFontSize(16);
+        doc.text("Description:", 20, 80);
+        
+        doc.setFontSize(12);
+        const description = doc.splitTextToSize(document.getElementById('description').textContent, 170);
+        doc.text(description, 25, 90);
+        
+        // Add preventive measures
+        let yPos = 90 + (description.length * 7);
+        doc.setFontSize(16);
+        doc.text("Preventive Measures:", 20, yPos + 10);
+        
+        doc.setFontSize(12);
+        const preventiveMeasures = document.getElementById('preventiveMeasures').innerText;
+        const measures = doc.splitTextToSize(preventiveMeasures, 170);
+        doc.text(measures, 25, yPos + 20);
+        
+        // Add solutions
+        yPos = yPos + 20 + (measures.length * 7);
+        doc.setFontSize(16);
+        doc.text("Treatment Solutions:", 20, yPos + 10);
+        
+        doc.setFontSize(12);
+        const solutions = document.getElementById('solutions').innerText;
+        const solutionsText = doc.splitTextToSize(solutions, 170);
+        doc.text(solutionsText, 25, yPos + 20);
+        
+        // Save the PDF
+        doc.save("crop_analysis_report.pdf");
+    }
+    
+    // Form submission with loading state
+    document.getElementById('analysisForm').addEventListener('submit', function() {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Analyzing...';
+        submitBtn.disabled = true;
+    });
 </script>
-{%endblock%}
+{% endblock %}
