@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class CropPredictionModel:
-    def __init__(self, model_dir='app/ml_models', data_path='Crop_recommendation (2).csv'):
+    def __init__(self, model_dir='ml_models', data_path='files/Crop_recommendation.csv'):
         self.model_dir = model_dir
         self.data_path = data_path
         self.suitability_model = None
@@ -45,6 +45,7 @@ class CropPredictionModel:
             # Check the target variable (assuming it's 'label' for crop type)
             if 'label' in df.columns:
                 logger.info(f"Target variable 'label' has {df['label'].nunique()} unique crops")
+                logger.info(f"Unique crops: {sorted(df['label'].unique())}")
             
             # Rename columns to match our expected feature names
             column_mapping = {
@@ -62,6 +63,7 @@ class CropPredictionModel:
             
             # Calculate optimal ranges for each crop
             self.calculate_crop_optimal_ranges(df)
+            logger.info(f"Calculated optimal ranges for {len(self.crop_optimal_ranges)} crops")
             
             # Calculate suitability score for each sample
             df['suitability_score'] = df.apply(
@@ -100,6 +102,7 @@ class CropPredictionModel:
             
         except Exception as e:
             logger.error(f"Error loading dataset: {str(e)}")
+            logger.error(f"Looking for file at: {os.path.abspath(self.data_path)}")
             # Fall back to synthetic data if real dataset is unavailable
             logger.info("Falling back to synthetic data...")
             return self.prepare_training_data()
@@ -440,8 +443,23 @@ class CropPredictionModel:
         """
         Find the most suitable crop based on input conditions
         """
-        best_crop = "General Crops"
+        best_crop = "rice"  # Default to rice instead of "General Crops"
         best_score = 0
+        
+        # If we don't have crop optimal ranges, return a sensible default based on conditions
+        if not self.crop_optimal_ranges:
+            # Simple heuristic based on temperature and rainfall
+            temp = input_data.get('temperature', 25)
+            rainfall = input_data.get('rainfall', 1000)
+            
+            if temp > 30 and rainfall > 1500:
+                return "rice"
+            elif temp < 20 and rainfall < 600:
+                return "wheat"
+            elif 20 <= temp <= 30:
+                return "maize"
+            else:
+                return "rice"
         
         for crop, ranges in self.crop_optimal_ranges.items():
             score = 0
@@ -454,9 +472,9 @@ class CropPredictionModel:
                         score += 100
                     else:
                         if value < min_val:
-                            deviation = (min_val - value) / min_val
+                            deviation = (min_val - value) / min_val if min_val > 0 else 0
                         else:
-                            deviation = (value - max_val) / max_val
+                            deviation = (value - max_val) / max_val if max_val > 0 else 0
                         score += max(0, 100 - (deviation * 100))
                     factors_considered += 1
             
@@ -465,6 +483,20 @@ class CropPredictionModel:
                 if average_score > best_score:
                     best_score = average_score
                     best_crop = crop
+        
+        # If no good match found (all crops scored poorly), use temperature-based recommendation
+        if best_score < 30:
+            temp = input_data.get('temperature', 25)
+            rainfall = input_data.get('rainfall', 1000)
+            
+            if temp > 30:
+                return "rice" if rainfall > 1000 else "cotton"
+            elif temp < 15:
+                return "apple" if rainfall > 800 else "wheat"
+            elif 15 <= temp <= 25:
+                return "maize" if rainfall > 600 else "chickpea"
+            else:
+                return "rice"
         
         return best_crop
     
@@ -510,7 +542,7 @@ class CropPredictionModel:
             'result': "Basic prediction based on general agricultural conditions.",
             'yield_estimation': "Estimated yield: 3.0-5.0 tons/hectare",
             'suitability_score': 75.0,
-            'recommended_crop': "General Crops",
+            'recommended_crop': "rice",  # Default to rice instead of "General Crops"
             'recommendations': ["Machine learning model unavailable. Using basic estimation."],
             'prediction_method': 'Fallback Method'
         }

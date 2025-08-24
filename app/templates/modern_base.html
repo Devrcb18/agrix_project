@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AgriX - Smart Agricultural Solutions{% endblock %}</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-ui.css') }}">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="navbar-modern">
+        <div class="container">
+            <div class="navbar-content">
+                <a href="{{ url_for('main.index') }}" class="navbar-brand-modern">
+                    <div class="feature-icon" style="width: 40px; height: 40px; margin: 0; font-size: 1.2rem;">
+                        <i class="fas fa-leaf"></i>
+                    </div>
+                    AgriX
+                </a>
+                
+                <ul class="navbar-nav-modern">
+                    <li><a href="{{ url_for('main.index') }}" class="nav-link-modern">Home</a></li>
+                    <li><a href="{{ url_for('main.about') }}" class="nav-link-modern">About</a></li>
+                    <li><a href="{{ url_for('main.contact') }}" class="nav-link-modern">Contact</a></li>
+                    <li><a href="https://agrixdiscussion.blogspot.com/2025/08/welcome-to-agrix-discussion.html" target="_blank" class="nav-link-modern">Community</a></li>
+                </ul>
+                
+                <div class="flex items-center gap-4">
+                    {% if current_user.is_authenticated %}
+                        <div class="flex items-center gap-3">
+                            <span class="text-gray-600">{{ current_user.username }}</span>
+                            <a href="{{ url_for('main.dashboard') }}" class="btn btn-outline">Dashboard</a>
+                            <a href="{{ url_for('main.logout') }}" class="btn btn-secondary">Logout</a>
+                        </div>
+                    {% else %}
+                        <div class="flex gap-3">
+                            <a href="{{ url_for('main.login') }}" class="btn btn-outline">Login</a>
+                            <a href="{{ url_for('main.signup') }}" class="btn btn-primary">Sign Up</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="container mt-8">
+                {% for message in messages %}
+                    <div class="alert alert-info">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="text-center">
+                <p>&copy; 2025 AgriX. Smart Agricultural Solutions for Modern Farmers.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // Simple mobile menu toggle (if needed)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add any global JavaScript here
+            
+            // Smooth scroll for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
